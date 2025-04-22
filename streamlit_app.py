@@ -295,7 +295,14 @@ def cached_run_model(n_samples, _start_task_length, _agi_task_length, _doubling_
 if run_button or "results" not in st.session_state:
     with st.spinner("Running model..."):
         try:
-            samples, samples_dates = run_model(n_samples=n_samples, **kwargs)
+            samples, samples_dates = cached_run_model(
+                n_samples=n_samples,
+                _start_task_length=kwargs.get("start_task_length"),
+                _agi_task_length=kwargs.get("agi_task_length"),
+                _doubling_time=kwargs.get("doubling_time"),
+                _acceleration=kwargs.get("acceleration"),
+                _shift=kwargs.get("shift"),
+                index_date=kwargs.get("index_date"),
                 correlated=kwargs.get("correlated", False),
             )
             st.session_state["results"] = (samples, samples_dates)

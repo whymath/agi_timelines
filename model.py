@@ -1,6 +1,7 @@
 import numpy as np
 import squigglepy as sq
 from datetime import datetime, timedelta
+import multiprocessing as mp
 
 # --- Constants ---
 O3_LAUNCH_DATE = datetime(2025, 4, 16)
@@ -113,16 +114,45 @@ def run_model(
     acceleration=None,
     shift=None,
     index_date=O3_LAUNCH_DATE,
+    correlated=False,
+    use_parallel=False,
 ):
+    """
+    Run the AGI timeline model.
+    If correlated=True, samples doubling_time and acceleration with negative correlation (lower doubling_time -> lower acceleration).
+    If use_parallel=True and n_samples > 20,000, parallelize the sampling step for speed.
+    """
     n_samples = min(max(1000, n_samples), 200_000)
 
     try:
-        # Sample all distributions up front
-        start_task_length = sq.sample(get_start_task_length(n_samples) if start_task_length is None else start_task_length, n=n_samples)
-        agi_task_length = sq.sample(get_agi_task_length() if agi_task_length is None else agi_task_length, n=n_samples)
-        doubling_time = sq.sample(get_doubling_time() if doubling_time is None else doubling_time, n=n_samples)
-        acceleration = sq.sample(get_acceleration() if acceleration is None else acceleration, n=n_samples)
-        shift = sq.sample(get_shift() if shift is None else shift, n=n_samples)
+        if use_parallel and n_samples > 20000:
+            with mp.Pool(4) as pool:
+                results = pool.starmap(
+                    lambda f, n: sq.sample(f(n), n=n) if callable(f) else sq.sample(f, n=n),
+                    [
+                        (get_start_task_length if start_task_length is None else start_task_length, n_samples),
+                        (get_agi_task_length if agi_task_length is None else agi_task_length, n_samples),
+                        (get_doubling_time if doubling_time is None else doubling_time, n_samples),
+                        (get_acceleration if acceleration is None else acceleration, n_samples),
+                        (get_shift if shift is None else shift, n_samples),
+                    ]
+                )
+            start_task_length, agi_task_length, doubling_time, acceleration, shift = results
+            if correlated:
+                u = np.random.uniform(0, 1, n_samples)
+                doubling_time = 60 + 340 * u
+                acceleration = 1 - 0.2 * (1 - u)
+        else:
+            start_task_length = sq.sample(get_start_task_length(n_samples) if start_task_length is None else start_task_length, n=n_samples)
+            agi_task_length = sq.sample(get_agi_task_length() if agi_task_length is None else agi_task_length, n=n_samples)
+            if correlated:
+                u = np.random.uniform(0, 1, n_samples)
+                doubling_time = 60 + 340 * u
+                acceleration = 1 - 0.2 * (1 - u)
+            else:
+                doubling_time = sq.sample(get_doubling_time() if doubling_time is None else doubling_time, n=n_samples)
+                acceleration = sq.sample(get_acceleration() if acceleration is None else acceleration, n=n_samples)
+            shift = sq.sample(get_shift() if shift is None else shift, n=n_samples)
 
         # Convert to numpy arrays
         start_task_length = np.asarray(start_task_length)
