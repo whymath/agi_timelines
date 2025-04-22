@@ -310,9 +310,9 @@ try:
     slow_y = base_rate * np.power(2, (x * 91.25) / (doubling_days * 1.5))
 
     # Plot the three curves
-    ax.plot(x, fast_y, 'b--', linewidth=2, label='10% earliest')
+    ax.plot(x, fast_y, 'b--', linewidth=2, label='10% Earliest')
     ax.plot(x, median_y, 'b-', linewidth=2, label='Median')
-    ax.plot(x, slow_y, 'b--', linewidth=2, label='90% latest')
+    ax.plot(x, slow_y, 'b--', linewidth=2, label='90% Latest')
     
     # Add endpoint markers
     # Find where curves cross AGI threshold
