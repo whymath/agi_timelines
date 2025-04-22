@@ -42,6 +42,19 @@ source venv/bin/activate
 - squigglepy
 - numpy
 - matplotlib
+2. Install dependencies using Poetry:
+   ```bash
+   # Install Poetry if you don't have it
+   pip install poetry
+   
+   # Install dependencies
+   poetry install
+   ```
+
+3. Run Jupyter notebook:
+   ```bash
+   poetry run jupyter notebook
+   ```
 
 If you don't have a `requirements.txt`, create one with:
 ```
