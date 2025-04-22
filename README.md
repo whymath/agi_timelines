@@ -13,12 +13,19 @@ This probabilistic approach accounts for uncertainties in starting capabilities,
    cd agi_timelines
    ```
 
-2. Install dependencies:
+2. Install dependencies using Poetry:
    ```bash
-   pip install -r requirements.txt
+   # Install Poetry if you don't have it
+   pip install poetry
+   
+   # Install dependencies
+   poetry install
    ```
 
-3. Run Juptyer notebook
+3. Run Jupyter notebook:
+   ```bash
+   poetry run jupyter notebook
+   ```
 
 
 ## Notes

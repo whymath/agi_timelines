@@ -1,0 +1,21 @@
+[project]
+name = "agi-timelines"
+version = "0.1.0"
+description = "A probabilistic modeling tool for forecasting AGI timeline trajectories"
+authors = [
+    {name = "Peter Wildeford"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy (>=1.20.0,<2.0.0)",
+    "squigglepy (>=0.4.0,<0.5.0)",
+    "matplotlib (>=3.5.0,<4.0.0)",
+    "jupyter (>=1.0.0,<2.0.0)",
+    "notebook (>=6.4.0,<7.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
