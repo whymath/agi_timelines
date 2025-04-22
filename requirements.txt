@@ -1,0 +1,5 @@
+matplotlib==3.10.1
+numpy==2.2.5
+pandas==2.2.3
+squigglepy==0.29
+streamlit==1.43.2
