@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from model import run_model, get_start_task_length, get_agi_task_length, get_doubling_time, get_acceleration, get_shift, O3_LAUNCH_DATE, CLAUDE_3P7_LAUNCH_DATE
+from model import run_model, get_start_task_length, get_agi_task_length, get_doubling_time, get_acceleration, get_shift, O3_LAUNCH_DATE, CLAUDE_3P7_LAUNCH_DATE, DEFAULT_PARAMS
 import squigglepy as sq
 from datetime import datetime, timedelta
 import io
@@ -67,7 +67,7 @@ if advanced_mode:
 
     # Model task time dictionary (in hours)
     model_task_times = {
-        "o3": 1.75,  # ~1hr45min
+        "o3": DEFAULT_PARAMS["start_task_length"],  # ~1hr45min
         "o4-mini": 1.50,  # ~1hr30min
         "Claude 3.7 Sonnet": 0.983,  # 59min
         "o1": 0.65,  # 39min
@@ -79,7 +79,7 @@ if advanced_mode:
         "GPT4o": 0.15,  # 9min
         "Claude 3 Opus": 0.1,  # 6min
         "GPT3.5 Turbo": 0.01,  # 36sec
-        "Custom": 1.75  # Default to o3 value
+        "Custom": DEFAULT_PARAMS["start_task_length"]  # Default to o3 value
     }
 
     # Set task length based on model selection
@@ -90,7 +90,7 @@ if advanced_mode:
             "Start task length (hours)", 
             min_value=0.01, 
             max_value=10.0, 
-            value=1.75, 
+            value=DEFAULT_PARAMS["start_task_length"], 
             step=0.01,
             help="The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for scaffolding, reliability, and task type penalties. Default: 1.75 hours (o3's task length)"
         )
@@ -99,7 +99,7 @@ else:
         "Start task length (hours)", 
         min_value=0.01, 
         max_value=10.0, 
-        value=1.75, 
+        value=DEFAULT_PARAMS["start_task_length"], 
         step=0.01,
         help="The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for scaffolding, reliability, and task type penalties. Default: 1.75 hours (o3's task length)"
     )
@@ -109,7 +109,7 @@ agi_task_length = st.sidebar.number_input(
     "AGI task length (hours)", 
     min_value=40.0, 
     max_value=5000.0, 
-    value=167.0, 
+    value=DEFAULT_PARAMS["agi_task_length"], 
     step=1.0,
     help="The human time required to complete a task that would count as 'AGI-level' (e.g., a month- or year-long project). Default: 167 hours (month-long tasks)"
 )
@@ -121,7 +121,7 @@ doubling_time = st.sidebar.number_input(
     "Doubling time (days)", 
     min_value=60.0, 
     max_value=400.0, 
-    value=212.0, 
+    value=DEFAULT_PARAMS["doubling_time"], 
     step=1.0,
     help="The number of days it takes for the maximum task length that AI can do at 50% reliability to double. Default: 212 days (METR 2019-2024 trend)"
 )
@@ -135,7 +135,7 @@ if advanced_mode:
     )
     
     if doubling_time_model == "METR 2019-2024 Trend (212 days)":
-        doubling_time = 212.0
+        doubling_time = DEFAULT_PARAMS["doubling_time"]
     elif doubling_time_model == "METR 2024-2025 Trend (118 days)":
         doubling_time = 118.0
     elif doubling_time_model == "Pessimistic Trend (320 days)":
@@ -148,7 +148,7 @@ acceleration = st.sidebar.slider(
     "Acceleration", 
     min_value=0.8, 
     max_value=1.2, 
-    value=1.0, 
+    value=DEFAULT_PARAMS["acceleration"], 
     step=0.01,
     help="If <1, the doubling time itself shrinks over time (superexponential progress); if >1, it grows (progress slows); if 1, progress is exponential."
 )
@@ -157,7 +157,7 @@ shift = st.sidebar.number_input(
     "Shift (days)", 
     min_value=0, 
     max_value=250, 
-    value=90, 
+    value=DEFAULT_PARAMS["shift"], 
     step=1,
     help="The number of days to shift the forecast earlier to account for internal model capabilities before public release. Default: 90 days"
 )
@@ -172,7 +172,7 @@ if advanced_mode:
             "Elicitation boost", 
             min_value=0.5, 
             max_value=2.0, 
-            value=1.0, 
+            value=DEFAULT_PARAMS["elicitation_boost"], 
             step=0.1,
             help="Boost factor from better scaffolding and increased compute. Default: 1.0 (no adjustment)"
         )
@@ -182,7 +182,7 @@ if advanced_mode:
             "Reliability needed", 
             min_value=0.5, 
             max_value=0.99, 
-            value=0.5, 
+            value=DEFAULT_PARAMS["reliability_needed"], 
             step=0.01,
             help="Required reliability level. Default: 0.5 (METR's standard)"
         )
@@ -192,7 +192,7 @@ if advanced_mode:
             "Task type complexity factor", 
             min_value=0.1, 
             max_value=10.0, 
-            value=1.0, 
+            value=DEFAULT_PARAMS["task_type_penalty"], 
             step=0.1,
             help="Adjustment for AGI tasks being harder than METR's self-contained software tasks. >1 = harder, <1 = easier. Default: 1.0 (no adjustment)"
         )
@@ -204,13 +204,13 @@ if advanced_mode:
         )
         
         if reference_date_option == "o3 Launch (2025-04-16)":
-            reference_date = O3_LAUNCH_DATE
+            reference_date = DEFAULT_PARAMS["reference_date"]
         elif reference_date_option == "Claude 3.7 Launch (2025-02-24)":
             reference_date = CLAUDE_3P7_LAUNCH_DATE
         else:
             reference_date = st.date_input(
                 "Custom reference date",
-                O3_LAUNCH_DATE.date(),
+                DEFAULT_PARAMS["reference_date"].date(),
                 help="The date from which to start counting days until AGI"
             )
             # Convert to datetime
@@ -218,7 +218,7 @@ if advanced_mode:
     
     # Only show the additional parameter adjustments if advanced mode is on
     use_adjusted_start_task = False
-    if elicitation_boost != 1.0 or reliability_needed != 0.5 or task_type_penalty != 1.0:
+    if elicitation_boost != DEFAULT_PARAMS["elicitation_boost"] or reliability_needed != DEFAULT_PARAMS["reliability_needed"] or task_type_penalty != DEFAULT_PARAMS["task_type_penalty"]:
         use_adjusted_start_task = True
         # Calculate adjusted start task length
         reliability_penalty = 1.0
@@ -238,7 +238,7 @@ if advanced_mode:
         start_task_length = adjusted_start_task_length
 else:
     # Default reference date when not in advanced mode
-    reference_date = O3_LAUNCH_DATE
+    reference_date = DEFAULT_PARAMS["reference_date"]
 
 st.sidebar.markdown("---")
 run_button = st.sidebar.button("Run Model")
@@ -254,7 +254,7 @@ if doubling_time > 0:
 else:
     # If doubling_time is -1, use the mixture model
     kwargs["doubling_time"] = None  # Will use the default mixture model in model.py
-if acceleration != 1.0:
+if acceleration != DEFAULT_PARAMS["acceleration"]:
     kwargs["acceleration"] = sq.const(acceleration)
 if shift > 0:
     kwargs["shift"] = sq.const(shift)
@@ -264,17 +264,17 @@ kwargs["index_date"] = reference_date
 if advanced_mode:
     correlated = st.sidebar.checkbox(
         "Correlate doubling time and acceleration (advanced)",
-        value=False,
+        value=DEFAULT_PARAMS["correlated"],
         help="If checked, samples doubling time and acceleration with negative correlation (lower doubling time → lower acceleration, i.e., faster progress)."
     )
     use_parallel = st.sidebar.checkbox(
         "Parallelize sampling (advanced, for large n_samples)",
-        value=False,
+        value=DEFAULT_PARAMS["use_parallel"],
         help="If checked, uses multiprocessing to parallelize sampling for large sample sizes. May speed up model runs on large datasets."
     )
 else:
-    correlated = False
-    use_parallel = False
+    correlated = DEFAULT_PARAMS["correlated"]
+    use_parallel = DEFAULT_PARAMS["use_parallel"]
 
 kwargs["correlated"] = correlated
 kwargs["use_parallel"] = use_parallel
@@ -538,20 +538,62 @@ try:
         # --- Explainability Section ---
         st.markdown("---")
         st.subheader("Explainability: What does this scenario mean?")
+
+        # Define defaults for comparison
+        default_params = DEFAULT_PARAMS
+        # Get user selections
+        user_params = {
+            "start_task_length": round(float(start_task_length), 3),
+            "agi_task_length": round(float(agi_task_length), 3),
+            "doubling_time": round(float(doubling_time), 3),
+            "acceleration": round(float(acceleration), 3),
+            "shift": int(shift),
+            "correlated": correlated,
+            "use_parallel": use_parallel,
+            "elicitation_boost": round(float(elicitation_boost), 3) if 'elicitation_boost' in locals() else 1.0,
+            "reliability_needed": round(float(reliability_needed), 3) if 'reliability_needed' in locals() else 0.5,
+            "task_type_penalty": round(float(task_type_penalty), 3) if 'task_type_penalty' in locals() else 1.0,
+            "reference_date": reference_date.strftime('%Y-%m-%d') if 'reference_date' in locals() else O3_LAUNCH_DATE.strftime('%Y-%m-%d'),
+        }
+        # Helper for difference
+        def diff_str(param, user, default):
+            if user == default:
+                return f"(default: {default})"
+            else:
+                return f"(default: {default}, changed)"
+
         st.markdown(f"""
         **What does this model do?**
         This model projects when AGI might be achieved by extrapolating recent trends in AI's ability to complete long, complex tasks, as measured by the METR benchmark. It uses a probabilistic approach, accounting for uncertainty in how fast progress will continue, how hard AGI-level tasks are, and how much reliability is required.
         
-        **Key parameters:**
-        - **Start task length:** The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for improvements from scaffolding and compute (elicitation boost), higher reliability requirements (reliability penalty), and the possibility that AGI tasks are harder than METR's self-contained software tasks (task type penalty). This is not just the raw model benchmark, but a composite reflecting how close we are to AGI-level tasks. [See: Forecaster Reacts]
-        - **AGI task length:** The human time required to complete a task that would count as "AGI-level" (e.g., a month- or year-long project). This is a subjective threshold, often set to something like 167 hours (a month of full-time work) or up to 2000 hours (a work year). [See: Forecaster Reacts]
-        - **Doubling time:** The number of days it takes for the maximum task length that AI can do at 50% reliability to double. This is fit to historical trends (e.g., 212 days for 2019-2024, 118 days for 2024-2025, or a mixture). [See: Forecaster Reacts]
-        - **Acceleration:** If <1, the doubling time itself shrinks over time (superexponential progress); if >1, it grows (progress slows); if 1, progress is exponential. [See: Forecaster Reacts]
-        - **Shift:** The number of days to shift the forecast earlier to account for internal model capabilities before public release (e.g., 30-150 days). [See: Forecaster Reacts]
+        **Your parameter selections:**
+        - **Start task length:** {user_params['start_task_length']} hours {diff_str('start_task_length', user_params['start_task_length'], default_params['start_task_length'])}
+            - The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for improvements from scaffolding and compute, higher reliability requirements, and the possibility that AGI tasks are harder than METR's self-contained software tasks. Lower values mean AGI is closer.
+        - **AGI task length:** {user_params['agi_task_length']} hours {diff_str('agi_task_length', user_params['agi_task_length'], default_params['agi_task_length'])}
+            - The human time required to complete a task that would count as "AGI-level" (e.g., a month- or year-long project). Lower values mean AGI is easier to reach.
+        - **Doubling time:** {user_params['doubling_time']} days {diff_str('doubling_time', user_params['doubling_time'], default_params['doubling_time'])}
+            - The number of days it takes for the maximum task length that AI can do at 50% reliability to double. Shorter doubling times mean faster progress.
+        - **Acceleration:** {user_params['acceleration']} {diff_str('acceleration', user_params['acceleration'], default_params['acceleration'])}
+            - If <1, progress accelerates (superexponential); if >1, progress slows; if 1, progress is exponential. Lower values mean AGI arrives sooner.
+        - **Shift:** {user_params['shift']} days {diff_str('shift', user_params['shift'], default_params['shift'])}
+            - The number of days to shift the forecast earlier to account for internal model capabilities before public release. Higher values mean AGI is forecasted to arrive sooner.
+        - **Elicitation boost:** {user_params['elicitation_boost']} {diff_str('elicitation_boost', user_params['elicitation_boost'], default_params['elicitation_boost'])}
+            - Factor for improvements from better scaffolding or more compute. >1 means faster progress.
+        - **Reliability needed:** {user_params['reliability_needed']} {diff_str('reliability_needed', user_params['reliability_needed'], default_params['reliability_needed'])}
+            - The required reliability for AGI-level performance. Higher reliability means a harder bar for AGI and increases the penalty on start task length.
+        - **Task type complexity factor:** {user_params['task_type_penalty']} {diff_str('task_type_penalty', user_params['task_type_penalty'], default_params['task_type_penalty'])}
+            - Adjusts for AGI tasks being harder than the METR benchmark tasks. >1 = AGI tasks are harder.
+        - **Reference date:** {user_params['reference_date']} {diff_str('reference_date', user_params['reference_date'], default_params['reference_date'].strftime('%Y-%m-%d'))}
+            - The date from which to start counting days until AGI. Usually the launch date of the reference model.
+        - **Correlated sampling:** {user_params['correlated']} {diff_str('correlated', user_params['correlated'], default_params['correlated'])}
+            - If enabled, samples doubling time and acceleration with negative correlation (lower doubling time → lower acceleration, i.e., faster progress). This can make AGI arrive sooner.
+        - **Parallel sampling:** {user_params['use_parallel']} {diff_str('use_parallel', user_params['use_parallel'], default_params['use_parallel'])}
+            - If enabled, uses multiprocessing to parallelize sampling for large sample sizes. This does not affect the forecast, only performance.
         
         **How do these affect the forecast?**
         - Lower start task length, lower AGI task length, shorter doubling time, and lower acceleration all make AGI arrive sooner.
         - Higher reliability or harder AGI task definitions push the date later.
+        - Enabling correlated sampling can make AGI arrive sooner by compounding progress.
         
         **Uncertainty and caveats:**
         - The model assumes "business as usual" and does not account for major disruptions (e.g., regulation, war, economic shocks).

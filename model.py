@@ -229,3 +229,17 @@ def run_model(
         error_msg = f"Error in model calculations: {str(e)}"
         print(error_msg)
         raise RuntimeError(error_msg) from e 
+
+DEFAULT_PARAMS = {
+    "start_task_length": 1.75,
+    "agi_task_length": 167.0,
+    "doubling_time": 212.0,
+    "acceleration": 1.0,
+    "shift": 90,
+    "correlated": False,
+    "use_parallel": False,
+    "elicitation_boost": 1.0,
+    "reliability_needed": 0.5,
+    "task_type_penalty": 1.0,
+    "reference_date": O3_LAUNCH_DATE,
+} 
