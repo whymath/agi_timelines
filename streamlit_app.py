@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from model import run_model, get_start_task_length, get_agi_task_length, get_doubling_time, get_acceleration, get_shift, O3_LAUNCH_DATE, CLAUDE_3P7_LAUNCH_DATE
 import squigglepy as sq
 from datetime import datetime, timedelta
+import io
+import pandas as pd
+import urllib.parse
 
 st.title("AGI Timelines Model (METR)")
 st.markdown("""
@@ -258,10 +261,43 @@ if shift > 0:
 # Add reference date to kwargs
 kwargs["index_date"] = reference_date
 
+if advanced_mode:
+    correlated = st.sidebar.checkbox(
+        "Correlate doubling time and acceleration (advanced)",
+        value=False,
+        help="If checked, samples doubling time and acceleration with negative correlation (lower doubling time → lower acceleration, i.e., faster progress)."
+    )
+    use_parallel = st.sidebar.checkbox(
+        "Parallelize sampling (advanced, for large n_samples)",
+        value=False,
+        help="If checked, uses multiprocessing to parallelize sampling for large sample sizes. May speed up model runs on large datasets."
+    )
+else:
+    correlated = False
+    use_parallel = False
+
+kwargs["correlated"] = correlated
+kwargs["use_parallel"] = use_parallel
+
+@st.cache_data(show_spinner=False)
+def cached_run_model(n_samples, _start_task_length, _agi_task_length, _doubling_time, _acceleration, _shift, index_date, correlated=False):
+    return run_model(
+        n_samples=n_samples,
+        start_task_length=_start_task_length,
+        agi_task_length=_agi_task_length,
+        doubling_time=_doubling_time,
+        acceleration=_acceleration,
+        shift=_shift,
+        index_date=index_date,
+        correlated=correlated,
+    )
+
 if run_button or "results" not in st.session_state:
     with st.spinner("Running model..."):
         try:
             samples, samples_dates = run_model(n_samples=n_samples, **kwargs)
+                correlated=kwargs.get("correlated", False),
+            )
             st.session_state["results"] = (samples, samples_dates)
             st.success("Model run completed successfully!")
         except Exception as e:
@@ -311,6 +347,15 @@ try:
         ax.set_ylabel("Frequency")
         ax.set_title("Distribution of AGI Arrival Dates")
         st.pyplot(fig)
+
+        # Add violin plot for uncertainty visualization
+        st.subheader("Uncertainty Visualization: Violin Plot of AGI Arrival Years")
+        fig2, ax2 = plt.subplots(figsize=(8, 2))
+        ax2.violinplot(years, showmeans=True, showmedians=True)
+        ax2.set_xticks([1])
+        ax2.set_xticklabels(["AGI Arrival Year Distribution"])
+        ax2.set_ylabel("Year")
+        st.pyplot(fig2)
     else:
         st.warning("No valid dates to plot in histogram.")
 except Exception as e:
