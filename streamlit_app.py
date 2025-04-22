@@ -430,7 +430,7 @@ try:
         median_date = sorted_dates[median_idx]
         st.subheader("Model's Computed Median AGI Date")
         st.info(f"**{median_date.strftime('%A, %-d %B %Y')}**")
-
+        st.subheader("Model's Computed 10% earliest AGI Date")
         # Also show 10% earliest and 90% latest AGI dates from the plot logic
         # Use the same logic as the plot: compute the quarter index where each curve crosses the AGI threshold
         base_rate = start_task_length
@@ -449,8 +449,9 @@ try:
         ref_date = reference_date if 'reference_date' in locals() else O3_LAUNCH_DATE
         fast_date = ref_date + timedelta(days=fast_cross * days_per_quarter)
         slow_date = ref_date + timedelta(days=slow_cross * days_per_quarter)
-        st.info(f"10% earliest AGI date: **{fast_date.strftime('%A, %-d %B %Y')}**")
-        st.info(f"90% latest AGI date: **{slow_date.strftime('%A, %-d %B %Y')}**")
+        st.info(f"**{fast_date.strftime('%A, %-d %B %Y')}**")
+        st.subheader("Model's Computed 90% latest AGI Date")
+        st.info(f"**{slow_date.strftime('%A, %-d %B %Y')}**")
     else:
         st.warning("No valid dates to compute median AGI date.")
 except Exception as e:
