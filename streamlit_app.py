@@ -18,25 +18,25 @@ st.sidebar.header("Model Parameters")
 with st.sidebar.expander("ℹ️ Parameter Explanations (click to expand)"):
     st.markdown("""
     **Start task length (hours):**
-    The number of hours it currently takes the best AI model to complete the reference task at 50% reliability. Lower values mean AI is already more capable.
+    The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for improvements from scaffolding and compute (elicitation boost), higher reliability requirements (reliability penalty), and the possibility that AGI tasks are harder than METR's self-contained software tasks (task type penalty). This is not just the raw model benchmark, but a composite reflecting how close we are to AGI-level tasks.
     
     **AGI task length (hours):**
-    The number of hours required for a task to be considered 'AGI-level' (e.g., a month-long project). Higher values mean a more demanding AGI definition.
+    The human time required to complete a task that would count as 'AGI-level' (e.g., a month- or year-long project). This is a subjective threshold, often set to something like 167 hours (a month of full-time work) or up to 2000 hours (a work year).
     
     **Doubling time (days):**
-    How many days it takes for the task length AI can do to double (i.e., for AI to handle tasks twice as long). Shorter doubling times mean faster progress.
+    The number of days it takes for the maximum task length that AI can do at 50% reliability to double. This is fit to historical trends (e.g., 212 days for 2019-2024, 118 days for 2024-2025, or a mixture).
     
     **Acceleration:**
-    If <1, progress speeds up over time (superexponential). If >1, progress slows down. 1 = constant exponential progress.
+    If <1, the doubling time itself shrinks over time (superexponential progress); if >1, it grows (progress slows); if 1, progress is exponential.
     
     **Shift (days):**
-    Shifts the timeline earlier to account for internal model capabilities before public release.
+    The number of days to shift the forecast earlier to account for internal model capabilities before public release (e.g., 30-150 days).
     
     **Elicitation boost:**
     Factor for improvements from better scaffolding or more compute. >1 means faster progress.
     
     **Reliability needed:**
-    The required reliability for AGI-level performance. Higher reliability means a harder bar for AGI.
+    The required reliability for AGI-level performance. Higher reliability means a harder bar for AGI and increases the penalty on start task length.
     
     **Task type complexity factor:**
     Adjusts for AGI tasks being harder than the METR benchmark tasks. >1 = AGI tasks are harder.
@@ -89,7 +89,7 @@ if advanced_mode:
             max_value=10.0, 
             value=1.75, 
             step=0.01,
-            help="Current hours needed for the reference task. Default: 1.75 hours (o3's task length)"
+            help="The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for scaffolding, reliability, and task type penalties. Default: 1.75 hours (o3's task length)"
         )
 else:
     start_task_length = st.sidebar.number_input(
@@ -98,7 +98,7 @@ else:
         max_value=10.0, 
         value=1.75, 
         step=0.01,
-        help="Current hours needed for the reference task. Default: 1.75 hours (o3's task length)"
+        help="The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for scaffolding, reliability, and task type penalties. Default: 1.75 hours (o3's task length)"
     )
 
 # AGI task length
@@ -108,7 +108,7 @@ agi_task_length = st.sidebar.number_input(
     max_value=5000.0, 
     value=167.0, 
     step=1.0,
-    help="Hours required for the task at AGI. Default: 167 hours (month-long tasks)"
+    help="The human time required to complete a task that would count as 'AGI-level' (e.g., a month- or year-long project). Default: 167 hours (month-long tasks)"
 )
 
 # Growth parameters
@@ -120,7 +120,7 @@ doubling_time = st.sidebar.number_input(
     max_value=400.0, 
     value=212.0, 
     step=1.0,
-    help="Doubling time at current capability level in days. Default: 212 days (METR 2019-2024 trend)"
+    help="The number of days it takes for the maximum task length that AI can do at 50% reliability to double. Default: 212 days (METR 2019-2024 trend)"
 )
 
 if advanced_mode:
@@ -147,7 +147,7 @@ acceleration = st.sidebar.slider(
     max_value=1.2, 
     value=1.0, 
     step=0.01,
-    help="Multiplicative factor applied to doubling time after each doubling. <1 = superexponential, 1 = normal exponential growth, >1 = subexponential."
+    help="If <1, the doubling time itself shrinks over time (superexponential progress); if >1, it grows (progress slows); if 1, progress is exponential."
 )
 
 shift = st.sidebar.number_input(
@@ -156,7 +156,7 @@ shift = st.sidebar.number_input(
     max_value=250, 
     value=90, 
     step=1,
-    help="Days to shift timeline earlier to account for internal deployments vs public releases. Default: 90 days"
+    help="The number of days to shift the forecast earlier to account for internal model capabilities before public release. Default: 90 days"
 )
 
 # Advanced parameters in expanded section
@@ -482,6 +482,31 @@ try:
         st.info(f"**{fast_date.strftime('%A, %-d %B %Y')}**")
         st.subheader("Model's Computed 90% Latest AGI Date")
         st.info(f"**{slow_date.strftime('%A, %-d %B %Y')}**")
+
+        # --- Explainability Section ---
+        st.markdown("---")
+        st.subheader("Explainability: What does this scenario mean?")
+        st.markdown(f"""
+        **What does this model do?**
+        This model projects when AGI might be achieved by extrapolating recent trends in AI's ability to complete long, complex tasks, as measured by the METR benchmark. It uses a probabilistic approach, accounting for uncertainty in how fast progress will continue, how hard AGI-level tasks are, and how much reliability is required.
+        
+        **Key parameters:**
+        - **Start task length:** The number of hours it takes a human to complete the hardest task that the current best AI model can do with 50% reliability, after adjusting for improvements from scaffolding and compute (elicitation boost), higher reliability requirements (reliability penalty), and the possibility that AGI tasks are harder than METR's self-contained software tasks (task type penalty). This is not just the raw model benchmark, but a composite reflecting how close we are to AGI-level tasks. [See: Forecaster Reacts]
+        - **AGI task length:** The human time required to complete a task that would count as "AGI-level" (e.g., a month- or year-long project). This is a subjective threshold, often set to something like 167 hours (a month of full-time work) or up to 2000 hours (a work year). [See: Forecaster Reacts]
+        - **Doubling time:** The number of days it takes for the maximum task length that AI can do at 50% reliability to double. This is fit to historical trends (e.g., 212 days for 2019-2024, 118 days for 2024-2025, or a mixture). [See: Forecaster Reacts]
+        - **Acceleration:** If <1, the doubling time itself shrinks over time (superexponential progress); if >1, it grows (progress slows); if 1, progress is exponential. [See: Forecaster Reacts]
+        - **Shift:** The number of days to shift the forecast earlier to account for internal model capabilities before public release (e.g., 30-150 days). [See: Forecaster Reacts]
+        
+        **How do these affect the forecast?**
+        - Lower start task length, lower AGI task length, shorter doubling time, and lower acceleration all make AGI arrive sooner.
+        - Higher reliability or harder AGI task definitions push the date later.
+        
+        **Uncertainty and caveats:**
+        - The model assumes "business as usual" and does not account for major disruptions (e.g., regulation, war, economic shocks).
+        - It extrapolates from recent trends, which may not continue indefinitely. Progress could slow down due to diminishing returns, or speed up due to breakthroughs or feedback loops.
+        - The definition of AGI is based on task length and reliability, which may not capture all aspects of "real" AGI.
+        - The model does not predict when AGI will be widely deployed or have major social impact—just when it becomes technically possible.
+        """)
     else:
         st.warning("No valid dates to compute median AGI date.")
 except Exception as e:
