@@ -15,6 +15,36 @@ Adjust the parameters and run the model to see updated timelines.
 # Sidebar for variable selection
 st.sidebar.header("Model Parameters")
 
+with st.sidebar.expander("ℹ️ Parameter Explanations (click to expand)"):
+    st.markdown("""
+    **Start task length (hours):**
+    The number of hours it currently takes the best AI model to complete the reference task at 50% reliability. Lower values mean AI is already more capable.
+    
+    **AGI task length (hours):**
+    The number of hours required for a task to be considered 'AGI-level' (e.g., a month-long project). Higher values mean a more demanding AGI definition.
+    
+    **Doubling time (days):**
+    How many days it takes for the task length AI can do to double (i.e., for AI to handle tasks twice as long). Shorter doubling times mean faster progress.
+    
+    **Acceleration:**
+    If <1, progress speeds up over time (superexponential). If >1, progress slows down. 1 = constant exponential progress.
+    
+    **Shift (days):**
+    Shifts the timeline earlier to account for internal model capabilities before public release.
+    
+    **Elicitation boost:**
+    Factor for improvements from better scaffolding or more compute. >1 means faster progress.
+    
+    **Reliability needed:**
+    The required reliability for AGI-level performance. Higher reliability means a harder bar for AGI.
+    
+    **Task type complexity factor:**
+    Adjusts for AGI tasks being harder than the METR benchmark tasks. >1 = AGI tasks are harder.
+    
+    **Reference date:**
+    The date from which to start counting days until AGI. Usually the launch date of the reference model.
+    """)
+
 # Fixed number of samples (always use 100,000)
 n_samples = 100_000
 
