@@ -106,6 +106,9 @@ def adapted_metr_model(start_task_length, agi_task_length, doubling_time, accele
     measurement_error_variance = sq.invlognorm(0.8, 1.5)
     return days * measurement_error_variance
 
+def _sample_helper(f, n):
+    return sq.sample(f(n), n=n) if callable(f) else sq.sample(f, n=n)
+
 def run_model(
     n_samples=100_000,
     start_task_length=None,
@@ -128,7 +131,7 @@ def run_model(
         if use_parallel and n_samples > 20000:
             with mp.Pool(4) as pool:
                 results = pool.starmap(
-                    lambda f, n: sq.sample(f(n), n=n) if callable(f) else sq.sample(f, n=n),
+                    _sample_helper,
                     [
                         (get_start_task_length if start_task_length is None else start_task_length, n_samples),
                         (get_agi_task_length if agi_task_length is None else agi_task_length, n_samples),
@@ -242,4 +245,76 @@ DEFAULT_PARAMS = {
     "reliability_needed": 0.5,
     "task_type_penalty": 1.0,
     "reference_date": O3_LAUNCH_DATE,
+} 
+
+# Parameter presets with descriptions
+PARAMETER_PRESETS = {
+    "Default": {
+        "params": DEFAULT_PARAMS,
+        "description": "Balanced parameters based on current AI trends from METR study. Uses 1.75 hours start task length (o3's level), 167 hours AGI task length (month of work), 212 days doubling time, and standard growth assumptions."
+    },
+    "Conservative": {
+        "params": {
+            "start_task_length": 0.8,  # Lower capability assessment
+            "agi_task_length": 2000,   # Full work year
+            "doubling_time": 320,      # Pessimistic trend
+            "acceleration": 1.1,       # Progress slows down
+            "shift": 30,               # Conservative shift
+            "elicitation_boost": 0.8,  # Less scaffolding improvement
+            "reliability_needed": 0.8, # Higher reliability needed
+            "task_type_penalty": 4.0,  # AGI tasks much harder than METR tasks
+            "reference_date": O3_LAUNCH_DATE,
+            "correlated": False,
+            "use_parallel": True,
+        },
+        "description": "Pessimistic timeline with more challenging AGI requirements. Uses lower current capability assessment, full work year AGI task (2000 hours), slower progress rate (320 days doubling), and assumption that AGI tasks are much harder than benchmarks."
+    },
+    "Aggressive": {
+        "params": {
+            "start_task_length": 2.5,  # Higher capability assessment
+            "agi_task_length": 80,     # Just 2 work weeks
+            "doubling_time": 118,      # 2024-2025 trend (faster)
+            "acceleration": 0.9,       # Superexponential progress
+            "shift": 120,              # Significant shift
+            "elicitation_boost": 1.5,  # Better scaffolding
+            "reliability_needed": 0.5, # METR standard
+            "task_type_penalty": 0.5,  # AGI tasks easier than METR tasks
+            "reference_date": O3_LAUNCH_DATE, 
+            "correlated": True,        # Correlated sampling
+            "use_parallel": True,
+        },
+        "description": "Optimistic timeline with faster progress. Uses higher capability assessment, 80-hour AGI threshold (2 weeks of work), fast doubling time (118 days), and superexponential progress assumptions, along with significant lead time from private models."
+    },
+    "Middle Ground": {
+        "params": {
+            "start_task_length": 1.75, # Default o3 value
+            "agi_task_length": 400,    # Few months of work
+            "doubling_time": 160,      # Between default and aggressive
+            "acceleration": 1.0,       # Exponential progress
+            "shift": 60,               # Moderate shift
+            "elicitation_boost": 1.0,  # No adjustment
+            "reliability_needed": 0.7, # Moderate reliability
+            "task_type_penalty": 1.5,  # AGI tasks somewhat harder
+            "reference_date": O3_LAUNCH_DATE,
+            "correlated": False,
+            "use_parallel": True,
+        },
+        "description": "Moderate forecasting assumptions between Default and Aggressive. Uses 400-hour AGI task length (10 weeks), 160-day doubling time, and moderate reliability requirements."
+    }
+} 
+
+# Model task time dictionary (in hours)
+MODEL_TASK_TIMES = {
+    "o3": DEFAULT_PARAMS["start_task_length"],  # ~1hr45min
+    "o4-mini": 1.50,  # ~1hr30min
+    "Claude 3.7 Sonnet": 0.983,  # 59min
+    "o1": 0.65,  # 39min
+    "Claude 3.5 Sonnet (new)": 0.467,  # 28min
+    "GPT4.5": 0.467,  # ~28min
+    "DeepSeek R1": 0.417,  # ~25min
+    "o1 Preview": 0.367,  # 22min
+    "Claude 3.5 Sonnet (old)": 0.3,  # 18min
+    "GPT4o": 0.15,  # 9min
+    "Claude 3 Opus": 0.1,  # 6min
+    "GPT3.5 Turbo": 0.01,  # 36sec
 } 
