@@ -534,12 +534,8 @@ try:
         st.info(f"**{fast_date.strftime('%A, %-d %B %Y')}**")
         st.subheader("Model's Computed 90% Latest AGI Date")
         st.info(f"**{slow_date.strftime('%A, %-d %B %Y')}**")
-
-        # --- Explainability Section ---
-        st.markdown("---")
-        st.subheader("Explainability: What does this scenario mean?")
-
-        # Define defaults for comparison
+        
+                # Define defaults for comparison
         default_params = DEFAULT_PARAMS
         # Get user selections
         user_params = {
@@ -561,6 +557,10 @@ try:
                 return f"(default: {default})"
             else:
                 return f"(default: {default}, changed)"
+
+        # --- Explainability Section ---
+        st.markdown("---")
+        st.subheader("Explainability: What does this scenario mean?")
 
         st.markdown(f"""
         **What does this model do?**
@@ -598,13 +598,112 @@ try:
         **Uncertainty and caveats:**
         - The model assumes "business as usual" and does not account for major disruptions (e.g., regulation, war, economic shocks).
         - It extrapolates from recent trends, which may not continue indefinitely. Progress could slow down due to diminishing returns, or speed up due to breakthroughs or feedback loops.
-        - The model is based on METR’s AI evaluation tasks and models' perfomance on them. These focus solely on software engineering, neglecting more complex or ambiguous domains where AI may struggle. They’re highly structured, solitary, and low-stakes, unlike real-world environments that demand adaptability, collaboration, and consequence-aware performance. Additionally, the tasks ignore learning curves that benefit human workers over time and set a low reliability benchmark (50%), whereas real-world applications often require much higher consistency.
+        - The model is based on METR's AI evaluation tasks and models' perfomance on them. These focus solely on software engineering, neglecting more complex or ambiguous domains where AI may struggle. They're highly structured, solitary, and low-stakes, unlike real-world environments that demand adaptability, collaboration, and consequence-aware performance. Additionally, the tasks ignore learning curves that benefit human workers over time and set a low reliability benchmark (50%), whereas real-world applications often require much higher consistency.
         - The model does not predict when AGI will be widely deployed or have major social impact—just when it becomes technically possible.
         """)
     else:
         st.warning("No valid dates to compute median AGI date.")
 except Exception as e:
     st.error(f"Error computing median AGI date: {str(e)}")
+
+st.markdown("---")
+
+# =====================
+# Sensitivity Analysis
+# =====================
+st.header("Sensitivity Analysis")
+st.markdown("""
+Explore how sensitive the AGI timeline is to each parameter. The tornado plot shows which parameters most affect the median AGI year. Use the what-if slider to see how changing a parameter shifts the forecast. ([Learn more](https://www.numberanalytics.com/blog/mastering-sensitivity-analysis-techniques-robust-data-models))
+""")
+
+# --- Sensitivity Analysis Setup ---
+SENS_N = 100000
+param_names = [
+    ("start_task_length", "Start task length (hours)", 0.01, 10.0),
+    ("agi_task_length", "AGI task length (hours)", 40.0, 5000.0),
+    ("doubling_time", "Doubling time (days)", 60.0, 400.0),
+    ("acceleration", "Acceleration", 0.8, 1.2),
+    ("shift", "Shift (days)", 0, 250),
+]
+
+# Get current parameter values
+fixed_params = {
+    "start_task_length": start_task_length,
+    "agi_task_length": agi_task_length,
+    "doubling_time": doubling_time,
+    "acceleration": acceleration,
+    "shift": shift,
+    "index_date": reference_date,
+    "correlated": correlated,
+    "use_parallel": False,
+}
+
+def get_median_agi_year(params):
+    try:
+        days, dates = run_model(
+            n_samples=SENS_N,
+            start_task_length=sq.const(params["start_task_length"]),
+            agi_task_length=sq.const(params["agi_task_length"]),
+            doubling_time=sq.const(params["doubling_time"]),
+            acceleration=sq.const(params["acceleration"]),
+            shift=sq.const(params["shift"]),
+            index_date=params["index_date"],
+            correlated=params.get("correlated", False),
+            use_parallel=False,
+        )
+        valid_dates = [d for d in dates if d is not None]
+        if valid_dates:
+            years = np.array([d.year + d.timetuple().tm_yday / 365 for d in valid_dates])
+            return float(np.median(years))
+        else:
+            return np.nan
+    except Exception:
+        return np.nan
+
+# --- Tornado Plot ---
+st.subheader("Tornado Plot: Parameter Sensitivity")
+impacts = []
+labels = []
+low_vals = []
+high_vals = []
+low_yrs = []
+high_yrs = []
+
+with st.spinner("Calculating tornado plot..."):
+    for key, label, vmin, vmax in param_names:
+        # Test at low and high value
+        params_low = fixed_params.copy()
+        params_high = fixed_params.copy()
+        params_low[key] = vmin
+        params_high[key] = vmax
+        low_year = get_median_agi_year(params_low)
+        high_year = get_median_agi_year(params_high)
+        # Store for plotting
+        labels.append(label)
+        low_vals.append(vmin)
+        high_vals.append(vmax)
+        low_yrs.append(low_year)
+        high_yrs.append(high_year)
+        impacts.append(abs(high_year - low_year))
+
+# Sort by impact
+order = np.argsort(impacts)[::-1]
+labels = np.array(labels)[order]
+low_yrs = np.array(low_yrs)[order]
+high_yrs = np.array(high_yrs)[order]
+
+fig, ax = plt.subplots(figsize=(7, 4))
+for i, (l, lo, hi) in enumerate(zip(labels, low_yrs, high_yrs)):
+    ax.plot([lo, hi], [i, i], 'o-', color='#4F8DFD', lw=6, alpha=0.7)
+    ax.plot([lo], [i], 'o', color='red', label='Low value' if i==0 else "")
+    ax.plot([hi], [i], 'o', color='green', label='High value' if i==0 else "")
+ax.set_yticks(range(len(labels)))
+ax.set_yticklabels(labels)
+ax.set_xlabel("Median AGI Year")
+ax.set_title("Tornado Plot: Sensitivity of Median AGI Year")
+ax.grid(axis='x', linestyle='--', alpha=0.5)
+ax.legend()
+st.pyplot(fig)
 
 st.markdown("---")
 st.markdown("""
