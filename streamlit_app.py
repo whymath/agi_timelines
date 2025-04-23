@@ -598,7 +598,7 @@ try:
         **Uncertainty and caveats:**
         - The model assumes "business as usual" and does not account for major disruptions (e.g., regulation, war, economic shocks).
         - It extrapolates from recent trends, which may not continue indefinitely. Progress could slow down due to diminishing returns, or speed up due to breakthroughs or feedback loops.
-        - The definition of AGI is based on task length and reliability, which may not capture all aspects of "real" AGI.
+        - The model is based on METR’s AI evaluation tasks and models' perfomance on them. These focus solely on software engineering, neglecting more complex or ambiguous domains where AI may struggle. They’re highly structured, solitary, and low-stakes, unlike real-world environments that demand adaptability, collaboration, and consequence-aware performance. Additionally, the tasks ignore learning curves that benefit human workers over time and set a low reliability benchmark (50%), whereas real-world applications often require much higher consistency.
         - The model does not predict when AGI will be widely deployed or have major social impact—just when it becomes technically possible.
         """)
     else:
