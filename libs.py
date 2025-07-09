@@ -15,7 +15,7 @@ DAYS_PER_QUARTER = 365 / 4
 def run_model(model, index_date, cores=1):
     samples = sq.sample(model, n=100_000, verbose=True, cores=cores)
     pprint(sq.get_percentiles(samples, digits=0))
-    print('\n-\n')
+    print("\n-\n")
     samples_ = sq.get_percentiles(samples_to_date(samples, index_date=index_date))
     samples_ = {k: v.strftime("%Y %b %d") for k, v in samples_.items()}
     pprint(samples_)
@@ -23,11 +23,15 @@ def run_model(model, index_date, cores=1):
 
 
 def samples_to_date(samples, index_date):
-    date_converter = np.vectorize(lambda x: index_date + timedelta(days=int(np.ceil(x))))
+    date_converter = np.vectorize(
+        lambda x: index_date + timedelta(days=int(np.ceil(x)))
+    )
     return date_converter(samples)
 
 
-def calculate_doubling_time(start_task_length, agi_task_length, doubling_time, acceleration=1):
+def calculate_doubling_time(
+    start_task_length, agi_task_length, doubling_time, acceleration=1
+):
     """
     Parameters
     ----------
@@ -60,7 +64,7 @@ def _pretty_time(hours: float) -> str:
     seconds = minutes * 60
     return f"{seconds:6.0f}sec"
 
-    
+
 def test_acceleration(
     start_task_length: float,
     agi_task_length: float,
@@ -86,25 +90,26 @@ def test_acceleration(
 
     while current_task < agi_task_length:
         date = start_date + timedelta(days=days_elapsed)
-        print(f"{step:4d} | {date.strftime(date_fmt)} | "
-              f"{int(days_elapsed):6d} | {_pretty_time(current_task):>10} | {tau:5.1f}")
+        print(
+            f"{step:4d} | {date.strftime(date_fmt)} | "
+            f"{int(days_elapsed):6d} | {_pretty_time(current_task):>10} | {tau:5.1f}"
+        )
 
-        current_task *= 2            # actual doubling
+        current_task *= 2  # actual doubling
         days_elapsed += tau
-        tau *= acceleration          # super‑/sub‑exponential effect
+        tau *= acceleration  # super‑/sub‑exponential effect
         step += 1
 
     # final line after exceeding target
     date = start_date + timedelta(days=days_elapsed)
-    print(f"{step:4d} | {date.strftime(date_fmt)} | "
-          f"{int(days_elapsed):6d} | {_pretty_time(current_task):>10} | {tau:5.1f}  <-- reached target")
+    print(
+        f"{step:4d} | {date.strftime(date_fmt)} | "
+        f"{int(days_elapsed):6d} | {_pretty_time(current_task):>10} | {tau:5.1f}  <-- reached target"
+    )
 
 
 def estimate_growth_parameters(
-    observations,
-    baseline_date=None,
-    baseline_task_hours=None,
-    reliability_level="50%"
+    observations, baseline_date=None, baseline_task_hours=None, reliability_level="50%"
 ):
     """
     Returns (initial_doubling_time, acceleration) where:
@@ -118,16 +123,24 @@ def estimate_growth_parameters(
         hours_idx = 3
     else:
         raise ValueError("reliability_level must be '50%' or '80%'")
-    
-    clean_data = [(name, date, obs[hours_idx]) for obs in observations for name, date in [(obs[0], obs[1])]]
-    
+
+    clean_data = [
+        (name, date, obs[hours_idx])
+        for obs in observations
+        for name, date in [(obs[0], obs[1])]
+    ]
+
     if baseline_date is None:
         baseline_date = clean_data[0][1]
     if baseline_task_hours is None:
         baseline_task_hours = clean_data[0][2]
 
-    doublings = np.log([hours / baseline_task_hours for _, _, hours in clean_data]) / np.log(2)
-    elapsed_days = np.array([(date - baseline_date).days for _, date, _ in clean_data], dtype=float)
+    doublings = np.log(
+        [hours / baseline_task_hours for _, _, hours in clean_data]
+    ) / np.log(2)
+    elapsed_days = np.array(
+        [(date - baseline_date).days for _, date, _ in clean_data], dtype=float
+    )
 
     def mse_loss(params):
         doubling_time, accel = params
@@ -137,10 +150,10 @@ def estimate_growth_parameters(
             prediction = doublings * doubling_time
         else:
             prediction = doubling_time * (1 - accel**doublings) / (1 - accel)
-        return np.mean((prediction - elapsed_days)**2)
+        return np.mean((prediction - elapsed_days) ** 2)
 
     bounds = Bounds([1e-6, 0.9], [np.inf, 1.0])
-    result = minimize(mse_loss, x0=[260.0, 0.95], method="L-BFGS-B", bounds=bounds)    
+    result = minimize(mse_loss, x0=[260.0, 0.95], method="L-BFGS-B", bounds=bounds)
     doubling_time, acceleration = result.x
     return round(doubling_time), round(acceleration, 3)
 
@@ -152,73 +165,86 @@ def print_estimation(data, reliability_level="50%"):
     print(f"{start} to {end} ({reliability_level}): {params}")
 
 
-def bootstrap_growth_parameters(observations, n_bootstrap=1000, reliability_level="50%", 
-                               min_models=5, recent_weight=2.0):
+def bootstrap_growth_parameters(
+    observations,
+    n_bootstrap=1000,
+    reliability_level="50%",
+    min_models=5,
+    recent_weight=2.0,
+):
     """
     Bootstrap confidence intervals for growth parameters with time-based weighting.
     """
     n_obs = len(observations)
     results = []
-    
+
     # Weight more recent observations higher
     weights = np.array([recent_weight ** (i / n_obs) for i in range(n_obs)])
     weights /= weights.sum()
-    
+
     for _ in range(n_bootstrap):
         # Sample with replacement, weighted by recency
         indices = np.random.choice(n_obs, size=n_obs, replace=True, p=weights)
         bootstrap_sample = [observations[i] for i in sorted(indices)]
-        
+
         # Only fit if we have enough unique models and reasonable time span
         if len(set(indices)) >= min_models:
-            params = estimate_growth_parameters(bootstrap_sample, reliability_level=reliability_level)
+            params = estimate_growth_parameters(
+                bootstrap_sample, reliability_level=reliability_level
+            )
             if params[0] < 1000:  # Filter out degenerate fits
                 results.append(params)
-    
+
     if not results:
         return None
-    
+
     # Calculate percentiles
     results = np.array(results)
     percentiles = np.percentile(results, [2.5, 50, 97.5], axis=0)
-    
+
     return {
-        'median': (round(percentiles[1, 0]), round(percentiles[1, 1], 3)),
-        'ci_95': {
-            'doubling_time': (round(percentiles[0, 0]), round(percentiles[2, 0])),
-            'acceleration': (round(percentiles[0, 1], 3), round(percentiles[2, 1], 3))
+        "median": (round(percentiles[1, 0]), round(percentiles[1, 1], 3)),
+        "ci_95": {
+            "doubling_time": (round(percentiles[0, 0]), round(percentiles[2, 0])),
+            "acceleration": (round(percentiles[0, 1], 3), round(percentiles[2, 1], 3)),
         },
-        'mean': (round(results[:, 0].mean()), round(results[:, 1].mean(), 3)),
-        'std': (round(results[:, 0].std()), round(results[:, 1].std(), 3))
+        "mean": (round(results[:, 0].mean()), round(results[:, 1].mean(), 3)),
+        "std": (round(results[:, 0].std()), round(results[:, 1].std(), 3)),
     }
 
 
-def sliding_window_analysis(observations, window_sizes=[6, 8, 10, 12], reliability_level="50%"):
+def sliding_window_analysis(
+    observations, window_sizes=[6, 8, 10, 12], reliability_level="50%"
+):
     """
     Test different time windows to see parameter stability.
     """
     results = []
-    
+
     for window in window_sizes:
         if window <= len(observations):
             # Try all possible windows of this size
             for start in range(len(observations) - window + 1):
-                subset = observations[start:start + window]
-                params = estimate_growth_parameters(subset, reliability_level=reliability_level)
-                
+                subset = observations[start : start + window]
+                params = estimate_growth_parameters(
+                    subset, reliability_level=reliability_level
+                )
+
                 start_date = subset[0][1]
                 end_date = subset[-1][1]
                 time_span = (end_date - start_date).days
-                
-                results.append({
-                    'window': window,
-                    'start_model': subset[0][0],
-                    'end_model': subset[-1][0],
-                    'time_span_days': time_span,
-                    'doubling_time': params[0],
-                    'acceleration': params[1]
-                })
-    
+
+                results.append(
+                    {
+                        "window": window,
+                        "start_model": subset[0][0],
+                        "end_model": subset[-1][0],
+                        "time_span_days": time_span,
+                        "doubling_time": params[0],
+                        "acceleration": params[1],
+                    }
+                )
+
     return pd.DataFrame(results)
 
 
@@ -239,7 +265,7 @@ def _quarter_labels(n: int, start_year: int = 2025) -> list[str]:
 
 
 def _y_ticks(lo: int, hi: int) -> list[int]:
-    return [2 ** k for k in range(lo, hi + 1)]
+    return [2**k for k in range(lo, hi + 1)]
 
 
 def _first_curve(order, traj, reference, above):
@@ -262,7 +288,7 @@ def plot_exponential_growth(
     max_task_power: int = 13,
     min_y_power: int = -8,
 ) -> None:
-    max_task_hours = 2 ** max_task_power
+    max_task_hours = 2**max_task_power
     tau0 = sq.sample(doubling_time_days, n=n_samples)
     accel = sq.sample(acceleration, n=n_samples)
     shift = sq.sample(shift, n=n_samples)
@@ -293,8 +319,10 @@ def plot_exponential_growth(
     median_idx = order[len(order) // 2]
     median_curve = traj[median_idx]
 
-    idx10 = _first_curve(order[int(0.10 * n_samples):], traj, median_curve, above=True)
-    idx90 = _first_curve(order[: int(0.90 * n_samples)][::-1], traj, median_curve, above=False)
+    idx10 = _first_curve(order[int(0.10 * n_samples) :], traj, median_curve, above=True)
+    idx90 = _first_curve(
+        order[: int(0.90 * n_samples)][::-1], traj, median_curve, above=False
+    )
 
     highlights = {
         "10 % earliest": (traj[idx10], first_hit[idx10], clip_idx[idx10], "b--"),
@@ -326,12 +354,12 @@ def plot_exponential_growth(
     plt.plot([], [], "rx", ms=7, label="AGI reached")
     plt.plot([], [], "ko", ms=7, label=f"AGI not by {_quarter_labels(n_quarters)[-1]}")
     plt.yscale("log", base=2)
-    
+
     nonzero_values = traj[traj > 0]
     percentile_0p1 = np.percentile(nonzero_values, 0.1)
     min_y_data = int(np.floor(np.log2(percentile_0p1)))
     y_lo = max(min_y_power, min_y_data)
-    
+
     plt.yticks(_y_ticks(lo=y_lo, hi=max_task_power))
     plt.gca().yaxis.set_major_formatter(FuncFormatter(billions_formatter))
     plt.xticks(quarters, _quarter_labels(n_quarters), rotation=90)
