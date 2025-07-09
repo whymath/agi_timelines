@@ -56,10 +56,12 @@ start_task_length = sq.dist_max(1/60/60, start_task_length)
 # Show samples in minutes (naturally in hours)
 pprint(sq.get_percentiles((start_task_length * 60) @ 100_000, digits=2))
 
+
 print('\n\n')
 print('## AGI task length (displayed in hrs) ##')
 agi_task_length = sq.lognorm(80, 2000, credibility=80, lclip=40)
 pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
+
 
 print('\n\n')
 print('## DOUBLING TIME (displayed in days) ##')
@@ -68,12 +70,14 @@ doubling_time = sq.mixture([[0.3, 212],
                             [0.6, sq.lognorm(lognorm_mean=185.25, lognorm_sd=40)]])
 pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
 
+
 print('\n\n')
 print('## ACCELERATION (displayed in days)')
 acceleration = sq.mixture([[0.1, 1 + sq.lognorm(0.005, 0.1, credibility=80)],
                            [0.8, 1],
                            [0.1, 1 - sq.lognorm(0.005, 0.1, credibility=80)]])
 pprint(sq.get_percentiles(acceleration @ 100_000, digits=3))
+
 
 print('\n\n')
 print('## SHIFT (displayed in days) ##')
