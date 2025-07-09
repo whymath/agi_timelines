@@ -3,6 +3,7 @@ import pandas as pd
 import squigglepy as sq
 import matplotlib.pyplot as plt
 
+from typing import List
 from pprint import pprint
 from datetime import datetime, timedelta
 from matplotlib.ticker import FuncFormatter
@@ -369,3 +370,62 @@ def plot_exponential_growth(
     plt.legend(loc="upper left")
     plt.show()
     return None
+
+
+def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
+    agi_years = [s / 365 + base_year for s in samples]
+    
+    print('## DISTRIBUTION OF AGI ARRIVAL DATE ##')
+    percentiles = [1, 2, 3, 4, 5, 10, 15, 20, 25, 35, 50, 60, 75, 80, 90, 95]
+    pctiles = sq.get_percentiles(agi_years, percentiles=percentiles)
+    
+    for pct, year in pctiles.items():
+        if year < 2100:
+            print(f"{pct}%: {round(year, 1)}")
+        else:
+            print(f"{pct}%: >2100")
+    print('')
+    print('')
+    
+    print('## DISTRIBUTION OF RELATIVE AGI ARRIVAL DATE ##')
+    for pct, year in pctiles.items():
+        years_from_now = year - base_year
+        if year < 2100:
+            print(f"{pct}%: {round(years_from_now, 1)} years from now")
+        else:
+            print(f"{pct}%: >75 years from now")
+    print(f"(Mean: {int(round(np.mean([y - base_year for y in agi_years])))} years from now)")
+    print('')
+    print('')
+    
+    print('## AGI ARRIVAL DATE BY BIN ##')
+    year_pairs = [
+        [2025, 2026], [2026, 2027], [2027, 2028], [2028, 2029], [2029, 2030],
+        [2030, 2032], [2032, 2035], [2035, 2040], [2040, 2050], [2050, 2060],
+        [2060, 2070], [2070, 2080], [2080, 2090], [2090, 2100]
+    ]
+    
+    def bin_agi_yrs(low=None, hi=None):
+        low = base_year if low is None else low
+        if hi is None:
+            r = np.mean([y >= low for y in agi_years])
+        else:
+            r = np.mean([(y >= low) and (y < hi) for y in agi_years])
+        return round(r * 100, 1)
+    
+    for start, end in year_pairs:
+        prob = bin_agi_yrs(start, end)
+        if start == end - 1:
+            print(f'{start}: {prob}%')
+        else:
+            print(f'{start}-{end-1}: {prob}%')
+    
+    print(f'>2100: {bin_agi_yrs(low=2100)}%')
+    print('')
+    print('')
+    
+    print('## AGI ARRIVAL DATE BY YEAR ##')
+    years = list(range(2025, 2035)) + list(range(2035, 2100, 5))
+    for year in years:
+        print(f'By EOY {year}: {bin_agi_yrs(hi=year+1)}%')
+    print('')
