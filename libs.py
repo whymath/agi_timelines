@@ -51,21 +51,6 @@ def calculate_doubling_time(start_task_length, agi_task_length, doubling_time, a
         return doubling_time * (1 - acceleration**doublings_needed) / (1 - acceleration)
 
 
-def calendar_days_for_doublings(
-    doublings: np.ndarray,
-    initial_doubling_time: float,
-    acceleration: float
-) -> np.ndarray:
-    """Super‑exponential growth law from Chin & You (2024)."""
-    if np.isclose(acceleration, 1.0):
-        # pure exponential (constant doubling time)
-        return doublings * initial_doubling_time
-    return (
-        initial_doubling_time
-        * (1 - acceleration ** doublings)
-        / (1 - acceleration)
-    )
-
 def _pretty_time(hours: float) -> str:
     """Return a string with value + unit, choosing h / min / s."""
     if hours >= 1:
