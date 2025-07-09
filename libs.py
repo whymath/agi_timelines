@@ -4,7 +4,6 @@ import squigglepy as sq
 import matplotlib.pyplot as plt
 
 from pprint import pprint
-from functools import partial
 from datetime import datetime, timedelta
 from matplotlib.ticker import FuncFormatter
 from scipy.optimize import minimize, Bounds
@@ -172,12 +171,9 @@ def bootstrap_growth_parameters(observations, n_bootstrap=1000, reliability_leve
         
         # Only fit if we have enough unique models and reasonable time span
         if len(set(indices)) >= min_models:
-            try:
-                params = estimate_growth_parameters(bootstrap_sample, reliability_level=reliability_level)
-                if params[0] < 1000:  # Filter out degenerate fits
-                    results.append(params)
-            except:
-                pass
+            params = estimate_growth_parameters(bootstrap_sample, reliability_level=reliability_level)
+            if params[0] < 1000:  # Filter out degenerate fits
+                results.append(params)
     
     if not results:
         return None
