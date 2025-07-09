@@ -13,8 +13,8 @@ from scipy.optimize import minimize, Bounds
 DAYS_PER_QUARTER = 365 / 4
 
 
-def run_model(model, index_date):
-    samples = sq.sample(model, n=100_000, verbose=True)
+def run_model(model, index_date, cores=1):
+    samples = sq.sample(model, n=100_000, verbose=True, cores=cores)
     pprint(sq.get_percentiles(samples, digits=0))
     print('\n-\n')
     samples_ = sq.get_percentiles(samples_to_date(samples, index_date=index_date))
