@@ -81,5 +81,5 @@ pprint(sq.get_percentiles(acceleration @ 100_000, digits=3))
 
 print('\n\n')
 print('## SHIFT (displayed in days) ##')
-shift = sq.norm(30, 30*5, credibility=80, lclip=0)
+shift = sq.norm(30, 30*9, credibility=90, lclip=0)
 pprint(sq.get_percentiles(shift @ 100_000, digits=0))
