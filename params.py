@@ -4,24 +4,29 @@ import squigglepy as sq
 from pprint import pprint
 
 
+# START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print('## START task length (displayed in min) ##')
 
-# -- DEFINE CURRENT BEST
-current_best = 1.75 # o3 task length at 50% reliability?
+# define current best
+current_best = 1.75 # Start with current best of o3 task length at 50% reliability
 
-# -- DEFINE ADJUSTMENTS
-elicitation_boost = sq.mixture([[0.3, 1], # Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? 30% chance no, 40% chance you can get a 1.2x speed up, 30% chance of 1.5x.
+# define adjustments
+# Elicitiation boost - Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? How much should we multiply up to adjust for this?
+elicitation_boost = sq.mixture([[0.3, 1], # 30% chance no, 40% chance you can get a 1.2x speed up, 30% chance of 1.5x.
                                 [0.4, 1.2],
                                 [0.3, 1.5]])
 
-inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1) # Can you get a boost to scores by increasing inference compute to human level? Approx doubling
-                               
-reliability_needed = sq.mixture([[0.2, 0.5], # What amount of reliability will we need? Probability distribution over hypotheses
+# METR didn't use human-cost inference compute. Can you get a boost to scores by increasing inference compute to human level? How much should we multiply up task length to adjust for this?
+inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
+
+# What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses 
+reliability_needed = sq.mixture([[0.2, 0.5],
                                  [0.4, 0.8],
                                  [0.2, 0.9],
                                  [0.1, 0.95],
                                  [0.1, 0.99]])
 
+# Turn the reliability number into an actual adjustment mulitiplier
 def reliability_count_to_penalty(reliability):
     r = np.asarray(reliability, dtype=float)
     reliability = np.array([0.50, 0.80, 0.90, 0.95, 0.99])
@@ -33,11 +38,18 @@ def reliability_count_to_penalty(reliability):
     out[hit_any] = penalty[idx[hit_any]]
     return out
 
+# Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
 task_type_penalty = sq.mixture([[0.1, 1],                         # 10% chance that METR's software tasks are sufficient for AGI
                                 [0.3, 1 / sq.lognorm(5, 20)],     # 30% chance that true AGI tasks are 5-20x harder than METR's software tasks
                                 [0.6, 1 / sq.lognorm(10, 1000)]]) # 60% chance that true AGI tasks are 10-1000x harder than METR's software tasks
 
-# -- CREATE DISTRIBUTION
+# Experience pentalty -- How much multiplier should we adjust down to adjust for the fact that METR's contractors are not max skill?
+ # METR March 2025 'horizon length' paper finds maintainers do 5-18x better than contractors. Jul 2025 paper finds negative speedup from experienced SWEs using AI.
+experience_penalty = sq.mixture([[0.3, 1],                       # 30% case for not adjusting for this, because a lot of the economy is not max skill and maybe max skill isn't really necessary
+                                 [0.4, 1 / sq.lognorm(5, 18)],   # 40% for making METR's 5-18x adjustment
+                                 [0.3, 1 / sq.lognorm(1, 5) ]])  # 30% for making a milder compromise adjustment
+
+# CREATE DISTRIBUTION #
 # Start with current best, add elicitation boost
 start_task_length = current_best * elicitation_boost
 
@@ -50,6 +62,9 @@ start_task_length = start_task_length * sq.dist_fn(reliability_needed, reliabili
 # Add task type penalty
 start_task_length *= task_type_penalty
 
+# Add experience penalty
+start_task_length *= experience_penalty
+
 # Add a minimum value of 1sec
 start_task_length = sq.dist_max(1/60/60, start_task_length)
 
@@ -57,11 +72,17 @@ start_task_length = sq.dist_max(1/60/60, start_task_length)
 pprint(sq.get_percentiles((start_task_length * 60) @ 100_000, digits=2))
 
 
+# -----------
+# AGI TASK LENGTH: What length of time (in hours) is needed to be AGI?
+
 print('\n\n')
 print('## AGI task length (displayed in hrs) ##')
 agi_task_length = sq.lognorm(80, 2000, credibility=80, lclip=40)
 pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
 
+
+# -----------
+# DOUBLING TIME: How many days does it take to double the effective task length?
 
 print('\n\n')
 print('## DOUBLING TIME (displayed in days) ##')
@@ -71,13 +92,19 @@ doubling_time = sq.mixture([[0.3, 212],
 pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
 
 
+# -----------
+# ACCELERATION: Is the curve actually superexponential or subexponential? Does the doubling time itself change? Set the curve parameter.
+
 print('\n\n')
-print('## ACCELERATION (displayed in days)')
+print('## ACCELERATION')
 acceleration = sq.mixture([[0.1, 1 + sq.lognorm(0.005, 0.1, credibility=80)],
                            [0.8, 1],
                            [0.1, 1 - sq.lognorm(0.005, 0.1, credibility=80)]])
 pprint(sq.get_percentiles(acceleration @ 100_000, digits=3))
 
+
+# -----------
+# SHIFT PARAMETER: How much earlier (in days) are capabilities developed internally versus made available to the public?
 
 print('\n\n')
 print('## SHIFT (displayed in days) ##')
