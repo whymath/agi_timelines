@@ -71,13 +71,11 @@ def test_acceleration(
     agi_task_length: float,
     initial_doubling_time: float,
     acceleration: float = 1.0,
-    start_date: str | datetime | None = None,
+    start_date: str | datetime = None,
     date_fmt: str = "%Y‑%m‑%d",
 ):
     # Anchor date
-    if start_date is None:
-        start_date = datetime.today()
-    elif isinstance(start_date, str):
+    if isinstance(start_date, str):
         start_date = datetime.fromisoformat(start_date)
 
     current_task = start_task_length
@@ -172,9 +170,14 @@ def bootstrap_growth_parameters(
     reliability_level="50%",
     min_models=5,
     recent_weight=2.0,
+    current_date=None,
 ):
     """
     Bootstrap confidence intervals for growth parameters with time-based weighting.
+    
+    If current_date is None (default), uses only the observed model data.
+    If current_date is provided, accounts for the fact that no new doubling 
+    has occurred between the last model and current_date.
     """
     n_obs = len(observations)
     results = []
@@ -193,7 +196,27 @@ def bootstrap_growth_parameters(
             params = estimate_growth_parameters(
                 bootstrap_sample, reliability_level=reliability_level
             )
+            
             if params[0] < 1000:  # Filter out degenerate fits
+                # If current_date provided, adjust acceptance probability based on censoring
+                if current_date:
+                    last_model = max(bootstrap_sample, key=lambda x: x[1])
+                    last_date = last_model[1]
+                    days_since_last = (current_date - last_date).days
+                    
+                    doubling_time, acceleration = params
+                    # Calculate probability we haven't seen a doubling yet given these params
+                    # Using exponential survival function: P(T > t) = exp(-t/λ)
+                    if doubling_time > 0:
+                        prob_no_doubling = np.exp(-days_since_last / doubling_time)
+                        
+                        # Accept/reject based on this probability
+                        if np.random.random() > prob_no_doubling:
+                            continue
+                    else:
+                        # If doubling_time is 0 or negative, reject this parameter set
+                        continue
+                
                 results.append(params)
 
     if not results:

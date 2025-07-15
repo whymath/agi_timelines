@@ -86,9 +86,9 @@ pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
 
 print('\n\n')
 print('## DOUBLING TIME (displayed in days) ##')
-doubling_time = sq.mixture([[0.3, 212],
-                            [0.1, 118],
-                            [0.6, sq.lognorm(lognorm_mean=185.25, lognorm_sd=40)]])
+doubling_time = sq.mixture([[0.3, 212], # METR finding
+                            [0.2, 118], # METR finding 2024+
+                            [0.5, sq.lognorm(97,308, credibility=95)]]) # `Track Acceleration` Boostrap Analysis 95% CI range
 pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
 
 
