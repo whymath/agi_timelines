@@ -5,7 +5,7 @@ from pprint import pprint
 
 
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
-print('## START task length (displayed in min) ##')
+print('## START task length (displayed in sec) ##')
 
 # define current best
 current_best = 1.75 # Start with current best of o3 task length at 50% reliability
@@ -39,9 +39,13 @@ def reliability_count_to_penalty(reliability):
     return out
 
 # Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
-task_type_penalty = sq.mixture([[0.1, 1],                         # 10% chance that METR's software tasks are sufficient for AGI
-                                [0.3, 1 / sq.lognorm(5, 20)],     # 30% chance that true AGI tasks are 5-20x harder than METR's software tasks
-                                [0.6, 1 / sq.lognorm(10, 1000)]]) # 60% chance that true AGI tasks are 10-1000x harder than METR's software tasks
+task_type_penalty = sq.mixture([[0.1, 1],                          # 10% chance that METR's software tasks are sufficient for AGI
+                                [0.9, 1 / sq.lognorm(5, 200)]])    # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
+# This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
+
+# Adjustment for messy tasks -- benchmark tasks are clean, very well specified, and close-ended. Real world tasks are not. How much to adjust for that?
+messy_tasks_penalty = sq.mixture([[0.1, 1],
+                                  [0.9, 1 / sq.norm(1, 10)]])
 
 # Experience pentalty -- How much multiplier should we adjust down to adjust for the fact that METR's contractors are not max skill?
  # METR March 2025 'horizon length' paper finds maintainers do 5-18x better than contractors. Jul 2025 paper finds negative speedup from experienced SWEs using AI.
@@ -62,14 +66,17 @@ start_task_length = start_task_length * sq.dist_fn(reliability_needed, reliabili
 # Add task type penalty
 start_task_length *= task_type_penalty
 
+# Add messy tasks penalty
+start_task_length *= messy_tasks_penalty
+
 # Add experience penalty
 start_task_length *= experience_penalty
 
 # Add a minimum value of 1sec
 start_task_length = sq.dist_max(1/60/60, start_task_length)
 
-# Show samples in minutes (naturally in hours)
-pprint(sq.get_percentiles((start_task_length * 60) @ 100_000, digits=2))
+# Show samples in seconds (naturally in hours)
+pprint(sq.get_percentiles((start_task_length * 60 * 60) @ 100_000, digits=2))
 
 
 # -----------
