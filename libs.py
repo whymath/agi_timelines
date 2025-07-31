@@ -452,3 +452,15 @@ def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
     for year in years:
         print(f'By EOY {year}: {bin_agi_yrs(hi=year+1)}%')
     print('')
+
+
+def fmt_worktime(hrs):
+	# Using work time: 8hr/day, 40hr/week
+	if hrs < 1:
+		return f"{int(hrs * 60)}min"
+	elif hrs < 8:
+		return f"{hrs:.1f}hr"
+	elif hrs < 40:
+		return f"{hrs/8:.1f}d"
+	else:
+		return f"{hrs/40:.1f}wk"
