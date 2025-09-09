@@ -17,17 +17,17 @@ def run_model(model, index_date, cores=1):
     samples = sq.sample(model, n=100_000, verbose=True, cores=cores)
     pprint(sq.get_percentiles(samples, digits=0))
     print("\n-\n")
+
+    def samples_to_date(samples, index_date):
+        date_converter = np.vectorize(
+            lambda x: index_date + timedelta(days=int(np.ceil(x)))
+        )
+        return date_converter(samples)
+
     samples_ = sq.get_percentiles(samples_to_date(samples, index_date=index_date))
     samples_ = {k: v.strftime("%Y %b %d") for k, v in samples_.items()}
     pprint(samples_)
     return samples
-
-
-def samples_to_date(samples, index_date):
-    date_converter = np.vectorize(
-        lambda x: index_date + timedelta(days=int(np.ceil(x)))
-    )
-    return date_converter(samples)
 
 
 def calculate_doubling_time(
@@ -55,17 +55,6 @@ def calculate_doubling_time(
         return doubling_time * (1 - acceleration**doublings_needed) / (1 - acceleration)
 
 
-def _pretty_time(hours: float) -> str:
-    """Return a string with value + unit, choosing h / min / s."""
-    if hours >= 1:
-        return f"{hours:6.2f}hr"
-    minutes = hours * 60
-    if minutes >= 1:
-        return f"{minutes:6.2f}min"
-    seconds = minutes * 60
-    return f"{seconds:6.0f}sec"
-
-
 def test_acceleration(
     start_task_length: float,
     agi_task_length: float,
@@ -74,7 +63,6 @@ def test_acceleration(
     start_date: str | datetime = None,
     date_fmt: str = "%Y‑%m‑%d",
 ):
-    # Anchor date
     if isinstance(start_date, str):
         start_date = datetime.fromisoformat(start_date)
 
@@ -86,6 +74,16 @@ def test_acceleration(
     header = f"{'Step':>4} | {'Date':^10} | {'Day':>6} | {'Task':>10} | τ (d)"
     print(header)
     print("-" * len(header))
+
+    def _pretty_time(hours: float) -> str:
+        """Return a string with value + unit, choosing h / min / s."""
+        if hours >= 1:
+            return f"{hours:6.2f}hr"
+        minutes = hours * 60
+        if minutes >= 1:
+            return f"{minutes:6.2f}min"
+        seconds = minutes * 60
+        return f"{seconds:6.0f}sec"
 
     while current_task < agi_task_length:
         date = start_date + timedelta(days=days_elapsed)
@@ -99,7 +97,6 @@ def test_acceleration(
         tau *= acceleration  # super‑/sub‑exponential effect
         step += 1
 
-    # final line after exceeding target
     date = start_date + timedelta(days=days_elapsed)
     print(
         f"{step:4d} | {date.strftime(date_fmt)} | "
@@ -174,9 +171,9 @@ def bootstrap_growth_parameters(
 ):
     """
     Bootstrap confidence intervals for growth parameters with time-based weighting.
-    
+
     If current_date is None (default), uses only the observed model data.
-    If current_date is provided, accounts for the fact that no new doubling 
+    If current_date is provided, accounts for the fact that no new doubling
     has occurred between the last model and current_date.
     """
     n_obs = len(observations)
@@ -196,27 +193,27 @@ def bootstrap_growth_parameters(
             params = estimate_growth_parameters(
                 bootstrap_sample, reliability_level=reliability_level
             )
-            
+
             if params[0] < 1000:  # Filter out degenerate fits
                 # If current_date provided, adjust acceptance probability based on censoring
                 if current_date:
                     last_model = max(bootstrap_sample, key=lambda x: x[1])
                     last_date = last_model[1]
                     days_since_last = (current_date - last_date).days
-                    
+
                     doubling_time, acceleration = params
                     # Calculate probability we haven't seen a doubling yet given these params
                     # Using exponential survival function: P(T > t) = exp(-t/λ)
                     if doubling_time > 0:
                         prob_no_doubling = np.exp(-days_since_last / doubling_time)
-                        
+
                         # Accept/reject based on this probability
                         if np.random.random() > prob_no_doubling:
                             continue
                     else:
                         # If doubling_time is 0 or negative, reject this parameter set
                         continue
-                
+
                 results.append(params)
 
     if not results:
@@ -397,37 +394,50 @@ def plot_exponential_growth(
 
 def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
     agi_years = [s / 365 + base_year for s in samples]
-    
-    print('## DISTRIBUTION OF AGI ARRIVAL DATE ##')
+
+    print("## DISTRIBUTION OF AGI ARRIVAL DATE ##")
     percentiles = [1, 2, 3, 4, 5, 10, 15, 20, 25, 35, 50, 60, 75, 80, 90, 95]
     pctiles = sq.get_percentiles(agi_years, percentiles=percentiles)
-    
+
     for pct, year in pctiles.items():
         if year < 2100:
             print(f"{pct}%: {round(year, 1)}")
         else:
             print(f"{pct}%: >2100")
-    print('')
-    print('')
-    
-    print('## DISTRIBUTION OF RELATIVE AGI ARRIVAL DATE ##')
+    print("")
+    print("")
+
+    print("## DISTRIBUTION OF RELATIVE AGI ARRIVAL DATE ##")
     for pct, year in pctiles.items():
         years_from_now = year - base_year
         if year < 2100:
             print(f"{pct}%: {round(years_from_now, 1)} years from now")
         else:
             print(f"{pct}%: >75 years from now")
-    print(f"(Mean: {int(round(np.mean([y - base_year for y in agi_years])))} years from now)")
-    print('')
-    print('')
-    
-    print('## AGI ARRIVAL DATE BY BIN ##')
+    print(
+        f"(Mean: {int(round(np.mean([y - base_year for y in agi_years])))} years from now)"
+    )
+    print("")
+    print("")
+
+    print("## AGI ARRIVAL DATE BY BIN ##")
     year_pairs = [
-        [2025, 2026], [2026, 2027], [2027, 2028], [2028, 2029], [2029, 2030],
-        [2030, 2032], [2032, 2035], [2035, 2040], [2040, 2050], [2050, 2060],
-        [2060, 2070], [2070, 2080], [2080, 2090], [2090, 2100]
+        [2025, 2026],
+        [2026, 2027],
+        [2027, 2028],
+        [2028, 2029],
+        [2029, 2030],
+        [2030, 2032],
+        [2032, 2035],
+        [2035, 2040],
+        [2040, 2050],
+        [2050, 2060],
+        [2060, 2070],
+        [2070, 2080],
+        [2080, 2090],
+        [2090, 2100],
     ]
-    
+
     def bin_agi_yrs(low=None, hi=None):
         low = base_year if low is None else low
         if hi is None:
@@ -435,32 +445,32 @@ def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
         else:
             r = np.mean([(y >= low) and (y < hi) for y in agi_years])
         return round(r * 100, 1)
-    
+
     for start, end in year_pairs:
         prob = bin_agi_yrs(start, end)
         if start == end - 1:
-            print(f'{start}: {prob}%')
+            print(f"{start}: {prob}%")
         else:
-            print(f'{start}-{end-1}: {prob}%')
-    
-    print(f'>2100: {bin_agi_yrs(low=2100)}%')
-    print('')
-    print('')
-    
-    print('## AGI ARRIVAL DATE BY YEAR ##')
+            print(f"{start}-{end-1}: {prob}%")
+
+    print(f">2100: {bin_agi_yrs(low=2100)}%")
+    print("")
+    print("")
+
+    print("## AGI ARRIVAL DATE BY YEAR ##")
     years = list(range(2025, 2035)) + list(range(2035, 2100, 5))
     for year in years:
-        print(f'By EOY {year}: {bin_agi_yrs(hi=year+1)}%')
-    print('')
+        print(f"By EOY {year}: {bin_agi_yrs(hi=year+1)}%")
+    print("")
 
 
 def fmt_worktime(hrs):
-	# Using work time: 8hr/day, 40hr/week
-	if hrs < 1:
-		return f"{int(hrs * 60)}min"
-	elif hrs < 8:
-		return f"{hrs:.1f}hr"
-	elif hrs < 40:
-		return f"{hrs/8:.1f}d"
-	else:
-		return f"{hrs/40:.1f}wk"
+    # Using work time: 8hr/day, 40hr/week
+    if hrs < 1:
+        return f"{int(hrs * 60)}min"
+    elif hrs < 8:
+        return f"{hrs:.1f}hr"
+    elif hrs < 40:
+        return f"{hrs/8:.1f}d"
+    else:
+        return f"{hrs/40:.1f}wk"
