@@ -2,13 +2,15 @@ import numpy as np
 import squigglepy as sq
 
 from pprint import pprint
+from datetime import datetime
 
 
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print("## START task length (displayed in sec) ##")
 
 # define current best
-current_best = 1.75  # Start with current best of o3 task length at 50% reliability
+current_best = 2 + 17 / 60 # Start with current best of GPT-5 task length at 50% reliability
+current_best_date = datetime(2025, 8, 7)
 
 # define adjustments
 # Elicitiation boost - Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? How much should we multiply up to adjust for this?

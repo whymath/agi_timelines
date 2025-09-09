@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from typing import List
 from pprint import pprint
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from matplotlib.ticker import FuncFormatter
 from scipy.optimize import minimize, Bounds
 
@@ -281,8 +281,13 @@ def billions_formatter(x, pos):
     return f"{x:.0f}"
 
 
-def _quarter_labels(n: int, start_year: int = 2025) -> list[str]:
-    return [f"{start_year + q // 4}Q{q % 4 + 1}" for q in range(n + 1)]
+def _quarter_labels(n: int, start_date: date) -> list[str]:
+    start_quarter = (start_date.month - 1) // 3 + 1  # Q1=1, Q2=2, Q3=3, Q4=4
+    start_year = start_date.year
+    return [
+        f"{start_year + (start_quarter - 1 + q) // 4}Q{(start_quarter - 1 + q) % 4 + 1}"
+        for q in range(n + 1)
+    ]
 
 
 def _y_ticks(lo: int, hi: int) -> list[int]:
@@ -299,7 +304,8 @@ def _first_curve(order, traj, reference, above):
 
 def plot_exponential_growth(
     doubling_time_days,
-    starting_hours,
+    start_hours,
+    start_date,
     agi_task_length,
     shift=0,
     acceleration=1,
@@ -309,12 +315,12 @@ def plot_exponential_growth(
     max_task_power: int = 13,
     min_y_power: int = -8,
 ) -> None:
-    max_task_hours = 2**max_task_power
+    max_task_hours = 2 ** max_task_power
     tau0 = sq.sample(doubling_time_days, n=n_samples)
     accel = sq.sample(acceleration, n=n_samples)
     shift = sq.sample(shift, n=n_samples)
     agi = sq.sample(sq.dist_min(max_task_hours, agi_task_length), n=n_samples)
-    start = sq.sample(starting_hours, n=n_samples) * 2 ** (shift / tau0)
+    start = sq.sample(start_hours, n=n_samples) * 2 ** (shift / tau0)
 
     quarters = np.arange(n_quarters + 1)
     traj = np.zeros((n_samples, len(quarters)))
@@ -373,7 +379,7 @@ def plot_exponential_growth(
         plt.plot(quarters[end_q], curve[end_q], marker, ms=7)
 
     plt.plot([], [], "rx", ms=7, label="AGI reached")
-    plt.plot([], [], "ko", ms=7, label=f"AGI not by {_quarter_labels(n_quarters)[-1]}")
+    plt.plot([], [], "ko", ms=7, label=f"AGI not by {_quarter_labels(n_quarters, start_date)[-1]}")
     plt.yscale("log", base=2)
 
     nonzero_values = traj[traj > 0]
@@ -383,7 +389,7 @@ def plot_exponential_growth(
 
     plt.yticks(_y_ticks(lo=y_lo, hi=max_task_power))
     plt.gca().yaxis.set_major_formatter(FuncFormatter(billions_formatter))
-    plt.xticks(quarters, _quarter_labels(n_quarters), rotation=90)
+    plt.xticks(quarters, _quarter_labels(n_quarters, start_date), rotation=90)
     plt.grid(ls="--", alpha=0.7)
     plt.ylabel("Task length (hours) -- note log scale")
     plt.tight_layout()
