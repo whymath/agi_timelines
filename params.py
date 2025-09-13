@@ -16,10 +16,7 @@ current_best_date = datetime(2025, 8, 7)
 # Elicitiation boost - Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? How much should we multiply up to adjust for this?
 elicitation_boost = sq.mixture(
     [
-        [
-            0.3,
-            1,
-        ],  # 30% chance no, 40% chance you can get a 1.2x speed up, 30% chance of 1.5x.
+        [0.3, 1.0],  # 30% chance no, 40% chance you can get a 1.2x speed up, 30% chance of 1.5x.
         [0.4, 1.2],
         [0.3, 1.5],
     ]
