@@ -302,6 +302,7 @@ def _first_curve(order, traj, reference, above):
     return order[0]
 
 
+# Plots exponential growth trajectories with uncertainty bands.
 def plot_exponential_growth(
     doubling_time_days,
     start_hours,
@@ -378,8 +379,8 @@ def plot_exponential_growth(
         marker = "rx" if hit_q < len(quarters) else "ko"
         plt.plot(quarters[end_q], curve[end_q], marker, ms=7)
 
-    plt.plot([], [], "rx", ms=7, label="AGI reached")
-    plt.plot([], [], "ko", ms=7, label=f"AGI not by {_quarter_labels(n_quarters, start_date)[-1]}")
+    plt.plot([], [], "rx", ms=7, label="HACCA reached")
+    plt.plot([], [], "ko", ms=7, label=f"HACCA not by {_quarter_labels(n_quarters, start_date)[-1]}")
     plt.yscale("log", base=2)
 
     nonzero_values = traj[traj > 0]
