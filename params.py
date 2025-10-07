@@ -9,7 +9,8 @@ from datetime import datetime
 print("## START task length (displayed in sec) ##")
 
 # define current best
-current_best = 2 + 17 / 60 # Start with current best of GPT-5 task length at 50% reliability
+# current_best = 2 + 17 / 60 # Start with current best of GPT-5 task length at 50% reliability
+current_best = 9 / 60 # Taken from CyBench (Unguided Highest FST) for Llama 3.1 405B Instruct
 current_best_date = datetime(2025, 8, 7)
 
 # define adjustments
@@ -27,7 +28,8 @@ inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
 
 # What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
 reliability_needed = sq.mixture(
-    [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    # [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    [[0.0, 0.5], [0.5, 0.8], [0.3, 0.9], [0.1, 0.95], [0.1, 0.99]]
 )
 
 
@@ -47,8 +49,10 @@ def reliability_count_to_penalty(reliability):
 # Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
 task_type_penalty = sq.mixture(
     [
-        [0.1, 1],  # 10% chance that METR's software tasks are sufficient for AGI
-        [0.9, 1 / sq.lognorm(5, 200)],
+        # [0.1, 1],  # 10% chance that METR's software tasks are sufficient for AGI
+        # [0.9, 1 / sq.lognorm(5, 200)],
+        [0.5, 1],  # 10% chance that METR's software tasks are sufficient for AGI
+        [0.5, 1 / sq.lognorm(5, 200)],
     ]
 )  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
 # This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
