@@ -4,32 +4,42 @@ import squigglepy as sq
 from pprint import pprint
 from datetime import datetime
 
+from model_data import model_data
+
+# -----------
+# GET INITIAL
+# -----------
 
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print("## START task length (displayed in sec) ##")
 
 # define current best
-current_best = 2 + 17 / 60 # Start with current best of GPT-5 task length at 50% reliability
-current_best_date = datetime(2025, 8, 7)
+best_model = max(
+    (m for m in model_data.values() if m.get('performance_50p') is not None), 
+    key=lambda m: m['performance_50p']
+)
+current_best = best_model['performance_50p']
+current_best_date = best_model['launch_date']
 
-# define adjustments
-# Elicitiation boost - Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? How much should we multiply up to adjust for this?
-elicitation_boost = sq.mixture(
-    [
+
+# ------------------
+# DEFINE ADJUSTMENTS
+# ------------------
+
+# 1. Elicitiation boost - Can you get a boost to scores by iterating on scaffolding and other elicitation techniques? How much should we multiply up to adjust for this?
+elicitation_boost = sq.mixture([
         [0.3, 1.0],  # 30% chance no, 40% chance you can get a 1.2x speed up, 30% chance of 1.5x.
         [0.4, 1.2],
         [0.3, 1.5],
-    ]
-)
+    ])
 
-# METR didn't use human-cost inference compute. Can you get a boost to scores by increasing inference compute to human level? How much should we multiply up task length to adjust for this?
+# 2. METR didn't use human-cost inference compute. Can you get a boost to scores by increasing inference compute to human level? How much should we multiply up task length to adjust for this?
 inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
 
-# What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
+# 3. What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
 reliability_needed = sq.mixture(
     [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
 )
-
 
 # Turn the reliability number into an actual adjustment mulitiplier
 def reliability_count_to_penalty(reliability):
@@ -44,32 +54,29 @@ def reliability_count_to_penalty(reliability):
     return out
 
 
-# Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
-task_type_penalty = sq.mixture(
-    [
+# 4. Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
+task_type_penalty = sq.mixture([
         [0.1, 1],  # 10% chance that METR's software tasks are sufficient for AGI
         [0.9, 1 / sq.lognorm(5, 200)],
-    ]
-)  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
+    ])  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
 # This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
 
-# Adjustment for messy tasks -- benchmark tasks are clean, very well specified, and close-ended. Real world tasks are not. How much to adjust for that?
+# 5. Adjustment for messy tasks -- benchmark tasks are clean, very well specified, and close-ended. Real world tasks are not. How much to adjust for that?
 messy_tasks_penalty = sq.mixture([[0.1, 1], [0.9, 1 / sq.norm(1, 10)]])
 
-# Experience pentalty -- How much multiplier should we adjust down to adjust for the fact that METR's contractors are not max skill?
+# 6. Experience pentalty -- How much multiplier should we adjust down to adjust for the fact that METR's contractors are not max skill?
 # METR March 2025 'horizon length' paper finds maintainers do 5-18x better than contractors. Jul 2025 paper finds negative speedup from experienced SWEs using AI.
-experience_penalty = sq.mixture(
-    [
-        [
-            0.3,
-            1,
-        ],  # 30% case for not adjusting for this, because a lot of the economy is not max skill and maybe max skill isn't really necessary
+experience_penalty = sq.mixture([
+        [0.3, 1],  # 30% case for not adjusting for this, because a lot of the economy is not max skill and maybe max skill isn't really necessary
         [0.4, 1 / sq.lognorm(5, 18)],  # 40% for making METR's 5-18x adjustment
         [0.3, 1 / sq.lognorm(1, 5)],
-    ]
-)  # 30% for making a milder compromise adjustment
+    ])  # 30% for making a milder compromise adjustment
 
+
+# ---------------------
 # CREATE DISTRIBUTION #
+# ---------------------
+
 # Start with current best, add elicitation boost
 start_task_length = current_best * elicitation_boost
 
@@ -96,6 +103,10 @@ start_task_length = sq.dist_max(1 / 60 / 60, start_task_length)
 # Show samples in seconds (naturally in hours)
 pprint(sq.get_percentiles((start_task_length * 60 * 60) @ 100_000, digits=2))
 
+
+# -------------------
+# ADDITIONAL PARAMS #
+# -------------------
 
 # -----------
 # AGI TASK LENGTH: What length of time (in hours) is needed to be AGI?
