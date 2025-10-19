@@ -13,14 +13,26 @@ from model_data import model_data
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print("## START task length (displayed in sec) ##")
 
+# Whether to use HACCA relevant adjustments
+hacca_mode = True
+reliability_metric = 'performance_50p'
+if hacca_mode:
+    reliability_metric = 'performance_80p'
+print(f"HACCA mode: {hacca_mode}, reliability metric: {reliability_metric}")
+# Print Llama 3.1 405B Instruct data for reference
+# llama_3p1 = model_data['llama_3p1_405b_instruct']
+# print(f"Llama 3.1 405B Instruct - Launch Date: {llama_3p1['launch_date'].strftime('%Y-%m-%d')}, "
+#       f"Performance 50p: {llama_3p1['performance_50p']*60:.2f} min, "
+#       f"Performance 80p: {llama_3p1['performance_80p']*60:.2f} min"
+#      )
+
 # define current best
 best_model = max(
-    (m for m in model_data.values() if m.get('performance_50p') is not None), 
-    key=lambda m: m['performance_50p']
+    (m for m in model_data.values() if m.get(reliability_metric) is not None), 
+    key=lambda m: m[reliability_metric]
 )
-current_best = best_model['performance_50p']
+current_best = best_model[reliability_metric]
 current_best_date = best_model['launch_date']
-
 
 # ------------------
 # DEFINE ADJUSTMENTS
@@ -32,15 +44,24 @@ elicitation_boost = sq.mixture([
         [0.4, 1.2],
         [0.3, 1.5],
     ])
+if hacca_mode:
+    elicitation_boost = sq.mixture([
+            [0.2, 1.1],  # 20% chance 1.1x, 60% chance you can get a 1.3x speed up, 20% chance of 1.5x.
+            [0.6, 1.3],
+            [0.2, 1.5],
+        ])
 
 # 2. METR didn't use human-cost inference compute. Can you get a boost to scores by increasing inference compute to human level? How much should we multiply up task length to adjust for this?
 inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
 
 # 3. What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
 reliability_needed = sq.mixture(
-    # [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
-    [[0.0, 0.5], [0.5, 0.8], [0.3, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
 )
+if hacca_mode:
+    reliability_needed = sq.mixture(
+        [[0.1, 0.5], [0.5, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    )
 
 # Turn the reliability number into an actual adjustment mulitiplier
 def reliability_count_to_penalty(reliability):
@@ -58,9 +79,14 @@ def reliability_count_to_penalty(reliability):
 # 4. Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
 task_type_penalty = sq.mixture([
         [0.1, 1],  # 10% chance that METR's software tasks are sufficient for AGI
-        [0.9, 1 / sq.lognorm(5, 200)],
-    ])  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
+        [0.9, 1 / sq.lognorm(5, 200)],  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
+    ])
 # This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
+if hacca_mode:
+    task_type_penalty = sq.mixture([
+            [0.5, 1 / sq.lognorm(1, 3)],  # 50% chance that HACCA capabilities are 1-3x harder than METR's software tasks
+            [0.5, 1 / sq.lognorm(3, 200)],  # 50% chance that HACCA capabilities are 3-200x harder than METR's software tasks
+        ])
 
 # 5. Adjustment for messy tasks -- benchmark tasks are clean, very well specified, and close-ended. Real world tasks are not. How much to adjust for that?
 messy_tasks_penalty = sq.mixture([[0.1, 1], [0.9, 1 / sq.norm(1, 10)]])
@@ -113,7 +139,10 @@ pprint(sq.get_percentiles((start_task_length * 60 * 60) @ 100_000, digits=2))
 # AGI TASK LENGTH: What length of time (in hours) is needed to be AGI?
 
 print("\n\n")
-print("## AGI task length (displayed in hrs) ##")
+if hacca_mode:
+    print("## HACCA task length (displayed in hrs) ##")
+else:
+    print("## AGI task length (displayed in hrs) ##")
 agi_task_length = sq.lognorm(80, 2000, credibility=80, lclip=40)
 pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
 
