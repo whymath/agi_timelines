@@ -122,7 +122,7 @@ model_data = {
     'claude_4p5_sonnet': {
         'name': 'Claude 4.5 Sonnet',
         'launch_date': datetime(2025, 9, 29),
-        'performance_50p': None, # Not yet known
-        'performance_80p': None
+        'performance_50p': 1 + 53/60,
+        'performance_80p': 20 / 60
     }
 }
