@@ -7,24 +7,45 @@ from datetime import datetime
 from model_data import model_data
 
 # -----------
+# HACCA PARAMETERS
+# -----------
+
+# HACCA flags to set
+hacca_mode = True
+custom_doubling_time_mode = False
+
+# Original defaults
+reliability_metric = 'performance_50p'
+custom_start_task_length = None
+custom_launch_date = None
+doubling_time_5percentile = 105 # days
+doubling_time_95percentile = 333 # days
+custom_end_year = None
+
+# Generating HACCA mode config
+if hacca_mode:
+    # Common HACCA settings
+    custom_end_year = 2035
+
+    # Whether to use custom doubling time specific to cybersecurity from Sean Peters' post
+    if custom_doubling_time_mode:
+        reliability_metric = 'performance_50p'
+        custom_start_task_length = 6 / 60  # in minutes
+        custom_launch_date = datetime(2025, 6, 5)  # date of Gemini 2.5 Pro
+        doubling_time_5percentile = 56  # days
+        doubling_time_95percentile = 284  # days
+    else:
+        # HACCA mode with frontier models and 80% reliability
+        reliability_metric = 'performance_50p'
+
+print(f"HACCA mode: {hacca_mode}, reliability metric: {reliability_metric}, custom_doubling_time: {custom_doubling_time_mode}, custom_start_task_length: {custom_start_task_length} hrs\n")
+
+# -----------
 # GET INITIAL
 # -----------
 
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print("## START task length (displayed in sec) ##")
-
-# Whether to use HACCA relevant adjustments
-hacca_mode = True
-reliability_metric = 'performance_50p'
-if hacca_mode:
-    reliability_metric = 'performance_80p'
-print(f"HACCA mode: {hacca_mode}, reliability metric: {reliability_metric}")
-# Print Llama 3.1 405B Instruct data for reference
-# llama_3p1 = model_data['llama_3p1_405b_instruct']
-# print(f"Llama 3.1 405B Instruct - Launch Date: {llama_3p1['launch_date'].strftime('%Y-%m-%d')}, "
-#       f"Performance 50p: {llama_3p1['performance_50p']*60:.2f} min, "
-#       f"Performance 80p: {llama_3p1['performance_80p']*60:.2f} min"
-#      )
 
 # define current best
 best_model = max(
@@ -33,6 +54,9 @@ best_model = max(
 )
 current_best = best_model[reliability_metric]
 current_best_date = best_model['launch_date']
+if hacca_mode and custom_start_task_length is not None:
+    current_best = custom_start_task_length
+    current_best_date = custom_launch_date
 
 # ------------------
 # DEFINE ADJUSTMENTS
@@ -152,7 +176,7 @@ pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
 
 print("\n\n")
 print("## DOUBLING TIME (displayed in days) ##")
-doubling_time = sq.lognorm(105, 333, credibility=90)  # `Track Acceleration` Boostrap Analysis 95% CI range
+doubling_time = sq.lognorm(doubling_time_5percentile, doubling_time_95percentile, credibility=90)  # `Track Acceleration` Boostrap Analysis 95% CI range
 pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
 
 
