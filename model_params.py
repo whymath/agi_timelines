@@ -36,7 +36,7 @@ if hacca_mode:
         doubling_time_95percentile = 284  # days
     else:
         # HACCA mode with frontier models and 80% reliability
-        reliability_metric = 'performance_50p'
+        reliability_metric = 'performance_80p'
 
 print(f"HACCA mode: {hacca_mode}, reliability metric: {reliability_metric}, custom_doubling_time: {custom_doubling_time_mode}, custom_start_task_length: {custom_start_task_length} hrs\n")
 
