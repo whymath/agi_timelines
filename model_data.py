@@ -122,13 +122,7 @@ model_data = {
     'claude_4p5_sonnet': {
         'name': 'Claude 4.5 Sonnet',
         'launch_date': datetime(2025, 9, 29),
-        'performance_50p': None, # Not yet known
-        'performance_80p': None
-    # },
-    # 'llama_3p1_405b_instruct': {
-    #     'name': 'Llama 3.1 405B Instruct',
-    #     'launch_date': datetime(2024, 7, 23),
-    #     'performance_50p': 18 / 60 * 7.5 / 17.5, # Using Claude 3.5 Sonnet (Old) value * CyBench ratio of Llama 3.1 405B Instruct to Claude 3.5 Sonnet
-    #     'performance_80p': 3 / 60 * 7.5 / 17.5 # Using Claude 3.5 Sonnet (Old) value * CyBench ratio of Llama 3.1 405B Instruct to Claude 3.5 Sonnet
+        'performance_50p': 1 + 53/60,
+        'performance_80p': 20 / 60
     }
 }
