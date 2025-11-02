@@ -471,12 +471,21 @@ def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
 
 
 def fmt_worktime(hrs):
-    # Using work time: 8hr/day, 40hr/week
+    # Using work time: 8hr/day, 40hr/week, 2000h/yr
     if hrs < 1:
         return f"{int(hrs * 60)}min"
     elif hrs < 8:
         return f"{hrs:.1f}hr"
     elif hrs < 40:
         return f"{hrs/8:.1f}d"
-    else:
+    elif hrs < 174:
         return f"{hrs/40:.1f}wk"
+    elif hrs < 2000:
+        return f"{hrs/174:.1f}mo"
+    elif hrs < 2000 * 1000:
+        return f"{hrs/2000:.1f}yr"
+    elif hrs < 2000 * 1000000:
+        return f"{int(hrs//(2000*1000))}K yr"
+    else:
+        return f"{int(hrs//(2000*1000000))}K yr"
+
