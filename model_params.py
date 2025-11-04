@@ -10,15 +10,21 @@ from model_data import model_data
 # GET INITIAL
 # -----------
 
+# Default parameters
+reliability_metric = 'performance_50p'
+doubling_time_5percentile = 105 # days
+doubling_time_95percentile = 333 # days
+end_year = 2030
+
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
 print("## START task length (displayed in sec) ##")
 
 # define current best
 best_model = max(
-    (m for m in model_data.values() if m.get('performance_50p') is not None), 
-    key=lambda m: m['performance_50p']
+    (m for m in model_data.values() if m.get(reliability_metric) is not None), 
+    key=lambda m: m[reliability_metric]
 )
-current_best = best_model['performance_50p']
+current_best = best_model[reliability_metric]
 current_best_date = best_model['launch_date']
 
 
@@ -122,7 +128,7 @@ pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
 
 print("\n\n")
 print("## DOUBLING TIME (displayed in days) ##")
-doubling_time = sq.lognorm(105, 333, credibility=90)  # `Track Acceleration` Boostrap Analysis 95% CI range
+doubling_time = sq.lognorm(doubling_time_5percentile, doubling_time_95percentile, credibility=90)  # `Track Acceleration` Boostrap Analysis 95% CI range
 pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
 
 
