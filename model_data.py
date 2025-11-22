@@ -124,5 +124,11 @@ model_data = {
         'launch_date': datetime(2025, 9, 29),
         'performance_50p': 1 + 53/60,
         'performance_80p': 20 / 60
-    }
+    },
+    'gpt5.1-codex-max': {
+        'name': 'GPT5.1-Codex-Max',
+        'launch_date': datetime(2025, 11, 19),
+        'performance_50p': 2 + 42 / 60,
+        'performance_80p': 31 / 60
+    },
 }
