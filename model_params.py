@@ -1,7 +1,6 @@
 import numpy as np
 import squigglepy as sq
 
-from pprint import pprint
 from datetime import datetime
 
 from model_data import model_data
@@ -17,7 +16,6 @@ doubling_time_95percentile = 333 # days
 end_year = 2030
 
 # START TASK LENGTH: How many max minutes of all AGI-relevant tasks can AI reliably do to a sufficient degree of reliability?
-print("## START task length (displayed in sec) ##")
 
 # define current best
 best_model = max(
@@ -106,9 +104,6 @@ start_task_length *= experience_penalty
 # Add a minimum value of 1sec
 start_task_length = sq.dist_max(1 / 60 / 60, start_task_length)
 
-# Show samples in seconds (naturally in hours)
-pprint(sq.get_percentiles((start_task_length * 60 * 60) @ 100_000, digits=2))
-
 
 # -------------------
 # ADDITIONAL PARAMS #
@@ -116,26 +111,12 @@ pprint(sq.get_percentiles((start_task_length * 60 * 60) @ 100_000, digits=2))
 
 # -----------
 # AGI TASK LENGTH: What length of time (in hours) is needed to be AGI?
-
-print("\n\n")
-print("## AGI task length (displayed in hrs) ##")
 agi_task_length = sq.lognorm(80, 2000, credibility=80, lclip=40)
-pprint(sq.get_percentiles(agi_task_length @ 100_000, digits=0))
-
 
 # -----------
 # DOUBLING TIME: How many days does it take to double the effective task length?
-
-print("\n\n")
-print("## DOUBLING TIME (displayed in days) ##")
 doubling_time = sq.lognorm(doubling_time_5percentile, doubling_time_95percentile, credibility=90)  # `Track Acceleration` Boostrap Analysis 95% CI range
-pprint(sq.get_percentiles(doubling_time @ 100_000, digits=0))
-
 
 # -----------
 # SHIFT PARAMETER: How much earlier (in days) are capabilities developed internally versus made available to the public?
-
-print("\n\n")
-print("## SHIFT (displayed in days) ##")
 shift = sq.norm(30, 30 * 9, credibility=90, lclip=0)
-pprint(sq.get_percentiles(shift @ 100_000, digits=0))

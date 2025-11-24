@@ -439,9 +439,7 @@ def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
         [2040, 2050],
         [2050, 2060],
         [2060, 2070],
-        [2070, 2080],
-        [2080, 2090],
-        [2090, 2100],
+        [2070, 2100],
     ]
 
     def bin_agi_yrs(low=None, hi=None):
@@ -463,8 +461,22 @@ def analyze_agi_arrival(samples: List[float], base_year: int = 2025) -> None:
     print("")
     print("")
 
+    print("## AGI ARRIVAL DATE BY PRESIDENCY ##")
+    presidencies = {'Trump': [2025, 2029],
+                    'Next President': [2029, 2033],
+                    'President elected in 2032': [2033, 2037],
+                    'Even later than that': [2037, 2100]}
+
+    for k, v in presidencies.items():
+        start = v[0]
+        end = v[1]
+        prob = bin_agi_yrs(start, end)
+        print(f"{k}: {prob}%")
+    print("")
+    print("")
+
     print("## AGI ARRIVAL DATE BY YEAR ##")
-    years = list(range(2025, 2035)) + list(range(2035, 2100, 5))
+    years = list(range(2025, 2035)) + list(range(2035, 2070, 5))
     for year in years:
         print(f"By EOY {year}: {bin_agi_yrs(hi=year+1)}%")
     print("")
