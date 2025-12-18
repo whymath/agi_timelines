@@ -26,13 +26,13 @@ model_data = {
     'gpt4': {
         'name': 'GPT-4',
         'launch_date': datetime(2023, 3, 14),
-        'performance_50p': 6 / 60,
+        'performance_50p': 5 / 60,
         'performance_80p': 1 / 60
     },
     'gpt4_nov23': {
         'name': 'GPT-4-Nov23',
         'launch_date': datetime(2023, 11, 6),
-        'performance_50p': 8 / 60,
+        'performance_50p': 9 / 60,
         'performance_80p': 1 / 60
     },
     'claude_3_opus': {
@@ -50,85 +50,103 @@ model_data = {
     'claude_3p5_sonnet_old': {
         'name': 'Claude 3.5 Sonnet (old)',
         'launch_date': datetime(2024, 6, 20),
-        'performance_50p': 18 / 60,
+        'performance_50p': 19 / 60,
         'performance_80p': 3 / 60
     },
     'o1_preview': {
         'name': 'o1 preview',
         'launch_date': datetime(2024, 9, 12),
         'performance_50p': 22 / 60,
-        'performance_80p': 4 / 60
+        'performance_80p': 5 / 60
     },
     'claude_3p5_sonnet_new': {
         'name': 'Claude 3.5 Sonnet (new)',
         'launch_date': datetime(2024, 10, 22),
-        'performance_50p': 28 / 60,
+        'performance_50p': 30 / 60,
         'performance_80p': 5 / 60
     },
     'o1': {
         'name': 'o1',
         'launch_date': datetime(2024, 12, 5),
-        'performance_50p': 39 / 60,
+        'performance_50p': 41 / 60,
         'performance_80p': 6 / 60
     },
     'claude_3p7_sonnet': {
         'name': 'Claude 3.7 Sonnet',
         'launch_date': datetime(2025, 2, 24),
-        'performance_50p': 59 / 60,
+        'performance_50p': 56 / 60,
         'performance_80p': 15 / 60
     },
     'o3': {
         'name': 'o3',
         'launch_date': datetime(2025, 4, 16),
-        'performance_50p': 1 + 45 / 60,
-        'performance_80p': 20 / 60
+        'performance_50p': 1 + 34 / 60,
+        'performance_80p': 21 / 60
     },
     'claude_4_sonnet': {
         'name': 'Claude 4 Sonnet',
         'launch_date': datetime(2025, 5, 22),
-        'performance_50p': 1 + 7 / 60,
-        'performance_80p': 16 / 60
+        'performance_50p': 1 + 15 / 60,
+        'performance_80p': 17 / 60
     },
     'claude_4_opus': {
         'name': 'Claude 4 Opus',
         'launch_date': datetime(2025, 5, 22),
-        'performance_50p': 1 + 19 / 60,
-        'performance_80p': 20 / 60
+        'performance_50p': 1 + 26 / 60,
+        'performance_80p': 21 / 60
     },
     'gemini_2p5_pro': {
         'name': 'Gemini 2.5 Pro',
         'launch_date': datetime(2025, 6, 5),
-        'performance_50p': 39 / 60,
+        'performance_50p': 40 / 60,
         'performance_80p': 9 / 60
     },
     'grok_4': {
         'name': 'Grok 4',
         'launch_date': datetime(2025, 7, 9),
-        'performance_50p': 1 + 50 / 60,
+        'performance_50p': 1 + 49 / 60,
         'performance_80p': 15 / 60
     },
     'claude_4p1_opus': {
         'name': 'Claude 4.1 Opus',
         'launch_date': datetime(2025, 8, 5),
-        'performance_50p': 1 + 45 / 60,
-        'performance_80p': 21 / 60
+        'performance_50p': 1 + 54 / 60,
+        'performance_80p': 22 / 60
     },
     'gpt5': {
         'name': 'GPT5',
         'launch_date': datetime(2025, 8, 7),
-        'performance_50p': 2 + 17 / 60,
-        'performance_80p': 25 / 60
+        'performance_50p': 2 + 18 / 60,
+        'performance_80p': 27 / 60
     },
     'claude_4p5_sonnet': {
         'name': 'Claude 4.5 Sonnet',
         'launch_date': datetime(2025, 9, 29),
-        'performance_50p': 1 + 53/60,
-        'performance_80p': 20 / 60
+        'performance_50p': 2 + 2/60,
+        'performance_80p': 21 / 60
+    },
+    'gemini_3': {
+        'name': 'Gemini 3',
+        'launch_date': datetime(2025, 11, 18),
+        'performance_50p': None, # Not yet known
+        'performance_80p': None
     },
     'gpt5.1-codex-max': {
         'name': 'GPT5.1-Codex-Max',
         'launch_date': datetime(2025, 11, 19),
-        'performance_50p': 2 + 42 / 60,
-        'performance_80p': 31 / 60
+        'performance_50p': 2 + 53 / 60,
+        'performance_80p': 32 / 60
+    },
+    'claude_4p5_opus': {
+        'name': 'Claude 4.5 Opus',
+        'launch_date': datetime(2025, 11, 24),
+        'performance_50p': None, # Not yet known
+        'performance_80p': None
+    },
+    'gpt5.2': {
+        'name': 'GPT5.2',
+        'launch_date': datetime(2025, 12, 11),
+        'performance_50p': None, # Not yet known
+        'performance_80p': None
     },
 }
