@@ -6,9 +6,85 @@ import multiprocessing as mp
 # --- Constants ---
 O3_LAUNCH_DATE = datetime(2025, 4, 16)
 CLAUDE_3P7_LAUNCH_DATE = datetime(2025, 2, 24)
+# Add latest model release dates for better reference
+GPT4O_LAUNCH_DATE = datetime(2024, 5, 13)
+CLAUDE_3_OPUS_LAUNCH_DATE = datetime(2024, 3, 4)
 
 # --- Model Functions ---
-def calculate_doubling_time(start_task_length, agi_task_length, doubling_time, acceleration=1):
+import typing
+import sys
+
+print("DEBUG: Loading model.py...", flush=True)
+
+def calculate_doubling_time(
+    start_task_length: float | np.ndarray | object, 
+    agi_task_length: float | np.ndarray | object, 
+    doubling_time: float | np.ndarray | object, 
+    acceleration: float | np.ndarray | object = 1
+) -> float | np.ndarray:
+    """
+    Calculate the time needed to reach AGI capability based on current capability and growth parameters.
+    
+    Args:
+        start_task_length (float): Hours for current AI to complete reference task
+        agi_task_length (float): Hours defining AGI-level task completion
+        doubling_time (float): Days for AI capability to double
+        acceleration (float, optional): Growth rate modifier. Defaults to 1 (exponential).
+            <1: superexponential growth, >1: subexponential growth
+    
+    Returns:
+        float: Days until AGI is reached
+    """
+    # Input validation
+    for name, value in [
+        ("start_task_length", start_task_length),
+        ("agi_task_length", agi_task_length),
+        ("doubling_time", doubling_time),
+        ("acceleration", acceleration)
+    ]:
+        if np.any(np.isnan(value)) or np.any(np.isinf(value)):
+            raise ValueError(f"{name} contains invalid values (NaN or Inf)")
+
+    # Calculate capability ratio and required doublings
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratio = np.maximum(agi_task_length / start_task_length, 1e-10)  # Avoid division by zero
+        doublings_needed = np.log(ratio) / np.log(2)
+        
+        # Handle acceleration = 1 (exponential) case efficiently
+        if isinstance(acceleration, (int, float)) and acceleration == 1:
+            return doublings_needed * doubling_time
+            
+        # Handle array input for acceleration
+        if isinstance(acceleration, np.ndarray):
+            # Create result array
+            result = np.zeros_like(doublings_needed)
+            
+            # Find indices where acceleration is effectively 1
+            is_one = np.isclose(acceleration, 1.0)
+            
+            # Calculate for acceleration == 1
+            if np.any(is_one):
+                result[is_one] = doublings_needed[is_one] * doubling_time[is_one]
+                
+            # Calculate for acceleration != 1
+            not_one = ~is_one
+            if np.any(not_one):
+                accel_not_one = acceleration[not_one]
+                doublings_not_one = doublings_needed[not_one]
+                dt_not_one = doubling_time[not_one]
+                
+                power_term = np.power(accel_not_one, doublings_not_one)
+                result[not_one] = dt_not_one * (1 - power_term) / (1 - accel_not_one)
+                
+            return np.clip(np.nan_to_num(result, nan=365*50, posinf=365*100, neginf=0), 0, 365*100)
+
+        # Handle general case with acceleration (scalar != 1)
+        power_term = np.power(acceleration, doublings_needed)
+        result = doubling_time * (1 - power_term) / (1 - acceleration)
+        
+        # Handle edge cases
+        result = np.nan_to_num(result, nan=365*50, posinf=365*100, neginf=0)
+        return np.clip(result, 0, 365*100)  # Cap at 100 years
     # If acceleration is a constant 1, use the simple formula
     # Otherwise, use the general formula
     # This works for both scalars and squigglepy distributions
@@ -65,29 +141,41 @@ def get_start_task_length(n_samples=100_000):
         idx = np.abs(r[..., None] - reliability_levels).argmin(axis=-1)
         return penalty[idx]
     task_type_penalty = sq.mixture([[0.2, 1], [0.4, 1 / sq.lognorm(5, 20)], [0.4, 1 / sq.lognorm(10, 1000)]])
-    start_task_length = current_best * elicitation_boost
-
-    # Sample reliability and apply penalty
+    task_type_penalty = sq.mixture([[0.2, 1], [0.4, 1 / sq.lognorm(5, 20)], [0.4, 1 / sq.lognorm(10, 1000)]])
+    
+    # Sample everything to avoid mixing distributions and arrays
+    start_task_length_samples = sq.sample(current_best * elicitation_boost, n=n_samples)
     reliability_samples = sq.sample(reliability_needed, n=n_samples)
     penalty_samples = reliability_count_to_penalty(reliability_samples)
-    penalty_dist = sq.Empirical(penalty_samples)
-    start_task_length = start_task_length * penalty_dist
-
-    start_task_length *= task_type_penalty
-    start_task_length = sq.dist_max(30/60/60, start_task_length)
+    task_type_penalty_samples = sq.sample(task_type_penalty, n=n_samples)
+    
+    # Combine samples
+    start_task_length = start_task_length_samples * penalty_samples * task_type_penalty_samples
+    
+    # Apply max constraint
+    start_task_length = np.maximum(30/60/60, start_task_length)
     return start_task_length
 
 def get_agi_task_length():
-    return sq.lognorm(80, 2000, credibility=80, lclip=40)
+    # Mixture of fast (~167h) and slow (~400h) AGI task length scenarios
+    fast = sq.lognorm(lognorm_mean=167, lognorm_sd=400, credibility=80, lclip=40)
+    slow = sq.lognorm(lognorm_mean=400, lognorm_sd=1000, credibility=80, lclip=40)
+    return sq.mixture([[0.7, fast], [0.3, slow]])
 
 def get_doubling_time():
     return sq.mixture([[0.4, 212], [0.2, 118], [0.1, 320], [0.3, sq.lognorm(lognorm_mean=126, lognorm_sd=40)]])
 
 def get_acceleration():
-    return sq.mixture([[0.6, 1], [0.4, 1 - sq.lognorm(0.005, 0.1, credibility=80)]])
+    # Mixture: superexponential (<1), neutral (1), slowdown (>1) scenarios
+    superexp = 1 - sq.lognorm(lognorm_mean=0.005, lognorm_sd=0.1, credibility=80)
+    slow = 1 + sq.lognorm(lognorm_mean=0.005, lognorm_sd=0.1, credibility=80)
+    return sq.mixture([[0.3, superexp], [0.4, 1], [0.3, slow]])
 
 def get_shift():
-    return sq.norm(30, 30*5, credibility=80, lclip=0)
+    # Mixture: typical small (~30d) and larger (~120d) shift scenarios
+    small = sq.norm(mean=30, sd=10, lclip=0)
+    large = sq.norm(mean=120, sd=30, lclip=0)
+    return sq.mixture([[0.6, small], [0.4, large]])
 
 def adapted_metr_model(start_task_length, agi_task_length, doubling_time, acceleration, shift):
     # Calculate the scaling factor more carefully
@@ -119,14 +207,155 @@ def run_model(
     index_date=O3_LAUNCH_DATE,
     correlated=False,
     use_parallel=False,
-):
+    seed=None,
+    progress_callback=None,  # Add progress callback for UI updates
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run the AGI timeline model with enhanced error handling and progress reporting.
+    
+    Args:
+        n_samples (int): Number of Monte Carlo samples
+        start_task_length: Distribution or value for start task length
+        agi_task_length: Distribution or value for AGI task length
+        doubling_time: Distribution or value for capability doubling time
+        acceleration: Distribution or value for acceleration factor
+        shift: Distribution or value for capability shift in days
+        index_date (datetime): Reference date for predictions
+        correlated (bool): Whether to correlate parameters
+        use_parallel (bool): Use parallel processing for large samples
+        seed (int): Random seed for reproducibility
+        progress_callback (callable): Optional callback for progress updates (0-100)
+        
+    Returns:
+        tuple: (days_until_agi, agi_dates)
+    """
+    # Input validation and normalization
+    n_samples = int(np.clip(n_samples, 1_000, 1_000_000))
+    if progress_callback:
+        progress_callback(5)  # Initial progress
+
+    try:
+        # Set random state for reproducibility
+        if seed is not None:
+            np.random.seed(seed)
+            import random
+            random.seed(seed)
+            
+        # Sample parameters with progress updates
+        if progress_callback:
+            progress_callback(10)
+
+        # Parameter sampling with better defaults
+        raw_params = {
+            'start_task_length': get_start_task_length(n_samples) if start_task_length is None else start_task_length,
+            'agi_task_length': get_agi_task_length() if agi_task_length is None else agi_task_length,
+            'doubling_time': get_doubling_time() if doubling_time is None else doubling_time,
+            'acceleration': get_acceleration() if acceleration is None else acceleration,
+            'shift': get_shift() if shift is None else shift,
+        }
+
+        params = {}
+        # Sample any distributions and convert to numpy arrays
+        for k, v in raw_params.items():
+            print(f"DEBUG: Processing parameter {k}...", flush=True)
+            try:
+                # Try to sample if it's a distribution or something sampleable
+                if isinstance(v, np.ndarray):
+                     val = v
+                elif hasattr(v, 'sample'): 
+                     # Use .sample() method directly if available
+                     # Ensure n is a python int
+                     n_int = int(n_samples)
+                     try:
+                         val = v.sample(n=n_int)
+                     except Exception as e_sample:
+                         print(f"DEBUG: v.sample() failed for {k}: {e_sample}")
+                         # Try sq.sample as fallback
+                         val = sq.sample(v, n=n_int)
+                elif hasattr(v, 'type'):
+                     # It's a distribution but maybe no sample method? Use sq.sample
+                     n_int = int(n_samples)
+                     val = sq.sample(v, n=n_int)
+                else:
+                     val = np.full(n_samples, v)
+                
+                # Ensure it's a flat float array
+                val = np.asarray(val, dtype=float)
+                if val.shape != (n_samples,):
+                    val = np.resize(val, n_samples)
+                params[k] = val
+            except Exception as e:
+                import traceback
+                print(f"DEBUG: CRITICAL FAILURE sampling {k}")
+                print(f"DEBUG: Value type: {type(v)}")
+                print(f"DEBUG: Exception: {e}")
+                traceback.print_exc()
+                
+                # If sampling fails, we can't proceed with this parameter as a distribution
+                # But if it's a scalar wrapped in something weird, try float conversion
+                try:
+                    scalar_val = float(v)
+                    params[k] = np.full(n_samples, scalar_val)
+                except:
+                    raise RuntimeError(f"Failed to sample parameter '{k}' ({type(v)}): {e}")
+                
+        if progress_callback:
+            progress_callback(30)
+            
+        # Apply correlations if needed
+        if correlated:
+            u = np.random.uniform(0, 1, n_samples)
+            params['doubling_time'] = 60 + 340 * u  # 60-400 day range
+            params['acceleration'] = 1 - 0.2 * (1 - u)  # Correlated acceleration
+            
+        if progress_callback:
+            progress_callback(50)
+            
+        # Calculate days to AGI with progress updates
+        days_to_agi = calculate_doubling_time(
+            start_task_length=params['start_task_length'],
+            agi_task_length=params['agi_task_length'],
+            doubling_time=params['doubling_time'],
+            acceleration=params['acceleration']
+        )
+        
+        # Apply shift and measurement error
+        scaling_factor = 2 ** (params['shift'] / params['doubling_time'])
+        days_to_agi = days_to_agi * scaling_factor
+        
+        # Add lognormal measurement error (10% std dev)
+        measurement_error = np.random.lognormal(0, 0.1, n_samples)
+        days_to_agi = days_to_agi * measurement_error
+        
+        # Clip to reasonable range
+        days_to_agi = np.clip(days_to_agi, 0, 365*100)  # Cap at 100 years
+        
+        if progress_callback:
+            progress_callback(90)
+            
+        # Convert to dates
+        agi_dates = samples_to_date(days_to_agi, index_date=index_date)
+        
+        if progress_callback:
+            progress_callback(100)
+            
+        return days_to_agi, agi_dates
+        
+    except Exception as e:
+        error_msg = f"Error in model execution: {str(e)}"
+        print(error_msg)
+        raise RuntimeError(error_msg) from e
     """
     Run the AGI timeline model.
     If correlated=True, samples doubling_time and acceleration with negative correlation (lower doubling_time -> lower acceleration).
     If use_parallel=True and n_samples > 20,000, parallelize the sampling step for speed.
     """
     n_samples = min(max(1000, n_samples), 200_000)
-
+    # Set random seed for reproducibility if provided
+    if seed is not None:
+        import random
+        random.seed(seed)
+        np.random.seed(seed)
     try:
         if use_parallel and n_samples > 20000:
             with mp.Pool(4) as pool:
@@ -304,6 +533,42 @@ PARAMETER_PRESETS = {
 } 
 
 # Model task time dictionary (in hours)
+# Add new utility function for quick estimation
+def estimate_agi_date(
+    start_task_length=1.75,
+    agi_task_length=167,
+    doubling_time=212,
+    acceleration=1.0,
+    shift=90,
+    index_date=O3_LAUNCH_DATE,
+):
+    """
+    Quick estimation of AGI date without full Monte Carlo simulation.
+    Returns the median estimate and 80% confidence interval.
+    """
+    # Calculate median estimate
+    scaling_factor = 2 ** (shift / doubling_time)
+    start_task_length_adj = start_task_length * scaling_factor
+    
+    if acceleration == 1:
+        days = (np.log(agi_task_length / start_task_length_adj) / np.log(2)) * doubling_time
+    else:
+        power_term = acceleration ** (np.log(agi_task_length / start_task_length_adj) / np.log(2))
+        days = doubling_time * (1 - power_term) / (1 - acceleration)
+    
+    agi_date = index_date + timedelta(days=days)
+    
+    # Simple uncertainty estimate (could be enhanced)
+    lower_bound = agi_date - timedelta(days=days*0.3)  # 30% earlier
+    upper_bound = agi_date + timedelta(days=days*0.5)  # 50% later
+    
+    return {
+        'median_date': agi_date,
+        'lower_bound': lower_bound,
+        'upper_bound': upper_bound,
+        'days_estimate': days
+    }
+
 MODEL_TASK_TIMES = {
     "o3": DEFAULT_PARAMS["start_task_length"],  # ~1hr45min
     "o4-mini": 1.50,  # ~1hr30min
