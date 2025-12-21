@@ -569,17 +569,125 @@ def estimate_agi_date(
         'days_estimate': days
     }
 
-MODEL_TASK_TIMES = {
-    "o3": DEFAULT_PARAMS["start_task_length"],  # ~1hr45min
-    "o4-mini": 1.50,  # ~1hr30min
-    "Claude 3.7 Sonnet": 0.983,  # 59min
-    "o1": 0.65,  # 39min
-    "Claude 3.5 Sonnet (new)": 0.467,  # 28min
-    "GPT4.5": 0.467,  # ~28min
-    "DeepSeek R1": 0.417,  # ~25min
-    "o1 Preview": 0.367,  # 22min
-    "Claude 3.5 Sonnet (old)": 0.3,  # 18min
-    "GPT4o": 0.15,  # 9min
-    "Claude 3 Opus": 0.1,  # 6min
-    "GPT3.5 Turbo": 0.01,  # 36sec
-} 
+# METR Benchmark Data Fetching
+_METR_BENCHMARK_URL = "https://metr.org/assets/benchmark_results.yaml"
+_metr_cache = None
+
+def fetch_metr_benchmark_data():
+    """
+    Fetch and parse benchmark results from METR's public YAML file.
+    Returns a dict mapping model names to their p50_horizon_length (in hours).
+    Data is cached after first fetch.
+    """
+    global _metr_cache
+    if _metr_cache is not None:
+        return _metr_cache
+    
+    try:
+        import urllib.request
+        import yaml
+        
+        with urllib.request.urlopen(_METR_BENCHMARK_URL, timeout=10) as response:
+            yaml_content = response.read().decode('utf-8')
+        
+        data = yaml.safe_load(yaml_content)
+        results = data.get('results', {})
+        
+        model_task_times = {}
+        for model_key, model_data in results.items():
+            metrics = model_data.get('metrics', {})
+            p50_horizon = metrics.get('p50_horizon_length', {})
+            estimate = p50_horizon.get('estimate')
+            release_date = model_data.get('release_date')
+            
+            if estimate is not None:
+                # Create display-friendly name
+                display_name = _format_model_name(model_key)
+                model_task_times[display_name] = {
+                    'p50_horizon_length': float(estimate),
+                    'release_date': release_date,
+                    'raw_key': model_key
+                }
+        
+        _metr_cache = model_task_times
+        return model_task_times
+        
+    except Exception as e:
+        print(f"Warning: Failed to fetch METR benchmark data: {e}")
+        # Return fallback data if fetch fails
+        return _get_fallback_task_times()
+
+def _format_model_name(model_key):
+    """Convert YAML model keys to display-friendly names."""
+    name_mapping = {
+        'o3': 'o3',
+        'o4-mini': 'o4-mini',
+        'o1_preview': 'o1 Preview',
+        'o1_elicited': 'o1',
+        'claude_3_7_sonnet': 'Claude 3.7 Sonnet',
+        'claude_3_5_sonnet': 'Claude 3.5 Sonnet (old)',
+        'claude_3_5_sonnet_20241022': 'Claude 3.5 Sonnet (new)',
+        'claude_3_opus': 'Claude 3 Opus',
+        'claude_4_opus': 'Claude 4 Opus',
+        'claude_4_1_opus': 'Claude 4.1 Opus',
+        'claude_4_sonnet': 'Claude 4 Sonnet',
+        'claude_sonnet_4_5': 'Claude Sonnet 4.5',
+        'claude_opus_4_5': 'Claude Opus 4.5',
+        'gpt_4o': 'GPT-4o',
+        'gpt_4': 'GPT-4',
+        'gpt_4_turbo': 'GPT-4 Turbo',
+        'gpt_4_0125': 'GPT-4 0125',
+        'gpt_4_1106': 'GPT-4 1106',
+        'gpt_3_5_turbo_instruct': 'GPT-3.5 Turbo',
+        'gpt_5': 'GPT-5',
+        'gpt_5_1_codex_max': 'GPT-5.1 Codex Max',
+        'gpt2': 'GPT-2',
+        'deepseek_r1': 'DeepSeek R1',
+        'deepseek_r1_0528': 'DeepSeek R1 0528',
+        'deepseek_v3': 'DeepSeek V3',
+        'deepseek_v3_0324': 'DeepSeek V3 0324',
+        'gemini_2_5_pro_preview': 'Gemini 2.5 Pro Preview',
+        'grok_4': 'Grok 4',
+        'kimi_k2_thinking': 'Kimi K2 Thinking',
+        'qwen_2_5_72b': 'Qwen 2.5 72B',
+        'qwen_2_72b': 'Qwen 2 72B',
+        'davinci_002': 'Davinci 002',
+        'gpt-oss-120b': 'GPT-OSS 120B',
+    }
+    return name_mapping.get(model_key, model_key.replace('_', ' ').title())
+
+def _get_fallback_task_times():
+    """Fallback data if METR fetch fails."""
+    return {
+        'o3': {'p50_horizon_length': 94.0, 'release_date': '2025-04-16'},
+        'o4-mini': {'p50_horizon_length': 78.6, 'release_date': '2025-04-16'},
+        'Claude 3.7 Sonnet': {'p50_horizon_length': 56.1, 'release_date': '2025-02-24'},
+        'o1': {'p50_horizon_length': 41.1, 'release_date': '2024-12-05'},
+        'Claude 3.5 Sonnet (new)': {'p50_horizon_length': 29.6, 'release_date': '2024-10-22'},
+        'DeepSeek R1': {'p50_horizon_length': 26.9, 'release_date': '2025-01-20'},
+        'o1 Preview': {'p50_horizon_length': 22.0, 'release_date': '2024-09-12'},
+        'Claude 3.5 Sonnet (old)': {'p50_horizon_length': 18.7, 'release_date': '2024-06-20'},
+        'GPT-4o': {'p50_horizon_length': 9.2, 'release_date': '2024-05-13'},
+        'Claude 3 Opus': {'p50_horizon_length': 6.4, 'release_date': '2024-03-04'},
+        'GPT-3.5 Turbo': {'p50_horizon_length': 0.6, 'release_date': '2022-03-15'},
+    }
+
+def get_model_task_times():
+    """
+    Get model task times (p50_horizon_length in hours) from METR benchmark data.
+    Returns dict: {model_name: p50_horizon_length_hours}
+    """
+    data = fetch_metr_benchmark_data()
+    return {name: info['p50_horizon_length'] for name, info in data.items()}
+
+def get_model_release_dates():
+    """
+    Get model release dates from METR benchmark data.
+    Returns dict: {model_name: release_date_string}
+    """
+    data = fetch_metr_benchmark_data()
+    return {name: info['release_date'] for name, info in data.items()}
+
+# Legacy compatibility: MODEL_TASK_TIMES as a simple dict
+# This will be populated on first access
+MODEL_TASK_TIMES = get_model_task_times() 
