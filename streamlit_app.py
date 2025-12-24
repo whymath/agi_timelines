@@ -312,7 +312,6 @@ else:
         task_type_penalty = DEFAULT_PARAMS["task_type_penalty"]
 
 st.sidebar.markdown("---")
-run_button = st.sidebar.button("Run Model")
 
 # Prepare variables for model
 kwargs = {}
@@ -360,48 +359,23 @@ else:
 kwargs["correlated"] = correlated
 kwargs["use_parallel"] = use_parallel
 
-@st.cache_data(show_spinner=False)
-def cached_run_model(n_samples, _start_task_length, _agi_task_length, _doubling_time, _acceleration, _shift, index_date, correlated=False, use_parallel=False):
-    return run_model(
-        n_samples=n_samples,
-        start_task_length=_start_task_length,
-        agi_task_length=_agi_task_length,
-        doubling_time=_doubling_time,
-        acceleration=_acceleration,
-        shift=_shift,
-        index_date=index_date,
-        correlated=correlated,
-        use_parallel=use_parallel,
-    )
-
-if run_button or "results" not in st.session_state:
-    with st.spinner("Running model..."):
-        try:
-            samples, samples_dates = cached_run_model(
-                n_samples=n_samples,
-                _start_task_length=kwargs.get("start_task_length"),
-                _agi_task_length=kwargs.get("agi_task_length"),
-                _doubling_time=kwargs.get("doubling_time"),
-                _acceleration=kwargs.get("acceleration"),
-                _shift=kwargs.get("shift"),
-                index_date=kwargs.get("index_date"),
-                correlated=kwargs.get("correlated", False),
-                use_parallel=kwargs.get("use_parallel", False),
-            )
-            st.session_state["results"] = (samples, samples_dates)
-            st.success("Model run completed successfully!")
-        except Exception as e:
-            st.error(f"Error running model: {str(e)}")
-            st.info("Try adjusting parameters or reducing the number of samples.")
-            if "results" not in st.session_state:
-                # If we have no previous results, stop here
-                st.stop()
-            else:
-                # Use previous results
-                samples, samples_dates = st.session_state["results"]
-                st.warning("Showing previous model results.")
-else:
-    samples, samples_dates = st.session_state["results"]
+with st.spinner("Running model..."):
+    try:
+        samples, samples_dates = run_model(
+            n_samples=n_samples,
+            start_task_length=kwargs.get("start_task_length"),
+            agi_task_length=kwargs.get("agi_task_length"),
+            doubling_time=kwargs.get("doubling_time"),
+            acceleration=kwargs.get("acceleration"),
+            shift=kwargs.get("shift"),
+            index_date=kwargs.get("index_date"),
+            correlated=kwargs.get("correlated", False),
+            use_parallel=kwargs.get("use_parallel", False),
+        )
+    except Exception as e:
+        st.error(f"Error running model: {str(e)}")
+        st.info("Try adjusting parameters or reducing the number of samples.")
+        st.stop()
 
 # Clean samples
 samples_clean = samples[~np.isnan(samples)]
@@ -432,7 +406,7 @@ with tab1:
         years_array = np.array([d.year for d in valid_dates])
         current_year = datetime.now().year
         max_year = int(np.max(years_array))
-        display_years = list(range(current_year, current_year+6)) + list(range(current_year+5, min(max_year+1, current_year+20), 5))
+        display_years = list(range(current_year, current_year+6)) + list(range(current_year+10, min(max_year+1, current_year+25), 5))
         
         results = []
         for year in display_years:

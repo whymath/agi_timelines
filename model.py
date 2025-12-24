@@ -1,5 +1,6 @@
 import numpy as np
 import squigglepy as sq
+from squigglepy.distributions import BaseDistribution
 from datetime import datetime, timedelta
 import multiprocessing as mp
 
@@ -13,8 +14,6 @@ CLAUDE_3_OPUS_LAUNCH_DATE = datetime(2024, 3, 4)
 # --- Model Functions ---
 import typing
 import sys
-
-print("DEBUG: Loading model.py...", flush=True)
 
 def calculate_doubling_time(
     start_task_length: float | np.ndarray | object, 
@@ -257,27 +256,27 @@ def run_model(
         params = {}
         # Sample any distributions and convert to numpy arrays
         for k, v in raw_params.items():
-            print(f"DEBUG: Processing parameter {k}...", flush=True)
             try:
-                # Try to sample if it's a distribution or something sampleable
-                if isinstance(v, np.ndarray):
-                     val = v
-                elif hasattr(v, 'sample'): 
-                     # Use .sample() method directly if available
-                     # Ensure n is a python int
-                     n_int = int(n_samples)
-                     try:
-                         val = v.sample(n=n_int)
-                     except Exception as e_sample:
-                         print(f"DEBUG: v.sample() failed for {k}: {e_sample}")
-                         # Try sq.sample as fallback
-                         val = sq.sample(v, n=n_int)
+                # Check if it's a squigglepy distribution first
+                if isinstance(v, BaseDistribution):
+                    n_int = int(n_samples)
+                    val = sq.sample(v, n=n_int)
+                elif isinstance(v, np.ndarray):
+                    val = v
+                elif hasattr(v, 'sample'):
+                    # Use .sample() method directly if available
+                    n_int = int(n_samples)
+                    try:
+                        val = v.sample(n=n_int)
+                    except Exception as e_sample:
+                        # Try sq.sample as fallback
+                        val = sq.sample(v, n=n_int)
                 elif hasattr(v, 'type'):
-                     # It's a distribution but maybe no sample method? Use sq.sample
-                     n_int = int(n_samples)
-                     val = sq.sample(v, n=n_int)
+                    # It's a distribution but maybe no sample method? Use sq.sample
+                    n_int = int(n_samples)
+                    val = sq.sample(v, n=n_int)
                 else:
-                     val = np.full(n_samples, v)
+                    val = np.full(n_samples, v)
                 
                 # Ensure it's a flat float array
                 val = np.asarray(val, dtype=float)
@@ -285,14 +284,7 @@ def run_model(
                     val = np.resize(val, n_samples)
                 params[k] = val
             except Exception as e:
-                import traceback
-                print(f"DEBUG: CRITICAL FAILURE sampling {k}")
-                print(f"DEBUG: Value type: {type(v)}")
-                print(f"DEBUG: Exception: {e}")
-                traceback.print_exc()
-                
-                # If sampling fails, we can't proceed with this parameter as a distribution
-                # But if it's a scalar wrapped in something weird, try float conversion
+                # If sampling fails, try float conversion as fallback
                 try:
                     scalar_val = float(v)
                     params[k] = np.full(n_samples, scalar_val)
