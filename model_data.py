@@ -140,12 +140,18 @@ model_data = {
     'claude_4p5_opus': {
         'name': 'Claude 4.5 Opus',
         'launch_date': datetime(2025, 11, 24),
+        'performance_50p': 4 + 49/60,
+        'performance_80p': 27 / 60
+    },
+    'gpt5.2': {
+        'name': 'GPT 5.2',
+        'launch_date': datetime(2025, 12, 11),
         'performance_50p': None, # Not yet known
         'performance_80p': None
     },
-    'gpt5.2': {
-        'name': 'GPT5.2',
-        'launch_date': datetime(2025, 12, 11),
+    'gpt5.2codex': {
+        'name': 'GPT 5.2 Codex',
+        'launch_date': datetime(2025, 12, 18),
         'performance_50p': None, # Not yet known
         'performance_80p': None
     },
