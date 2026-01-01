@@ -80,11 +80,11 @@ inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
 
 # 3. What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
 reliability_needed = sq.mixture(
-    [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    [[0.2, 0.5], [0.5, 0.8], [0.1, 0.9], [0.1, 0.95], [0.1, 0.99]]
 )
 if hacca_mode:
     reliability_needed = sq.mixture(
-        [[0.1, 0.5], [0.5, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
+        [[0.2, 0.5], [0.5, 0.8], [0.1, 0.9], [0.1, 0.95], [0.1, 0.99]]
     )
 
 # Turn the reliability number into an actual adjustment mulitiplier
