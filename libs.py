@@ -154,6 +154,48 @@ def estimate_growth_parameters(
     return round(doubling_time), round(acceleration, 3)
 
 
+def estimate_doubling_time_only(
+    observations, baseline_date=None, baseline_task_hours=None, reliability_level="50%"
+):
+    """
+    Estimate doubling time with acceleration fixed at 1.0 (pure exponential growth).
+    Returns just the doubling time in days.
+    """
+    if reliability_level == "50%":
+        hours_idx = 2
+    elif reliability_level == "80%":
+        hours_idx = 3
+    else:
+        raise ValueError("reliability_level must be '50%' or '80%'")
+
+    clean_data = [
+        (name, date, obs[hours_idx])
+        for obs in observations
+        for name, date in [(obs[0], obs[1])]
+    ]
+
+    if baseline_date is None:
+        baseline_date = clean_data[0][1]
+    if baseline_task_hours is None:
+        baseline_task_hours = clean_data[0][2]
+
+    doublings = np.log(
+        [hours / baseline_task_hours for _, _, hours in clean_data]
+    ) / np.log(2)
+    elapsed_days = np.array(
+        [(date - baseline_date).days for _, date, _ in clean_data], dtype=float
+    )
+
+    # Simple linear regression: elapsed_days = doubling_time * doublings
+    # Least squares solution: doubling_time = sum(doublings * elapsed_days) / sum(doublings^2)
+    if np.sum(doublings**2) > 0:
+        doubling_time = np.sum(doublings * elapsed_days) / np.sum(doublings**2)
+    else:
+        doubling_time = 0
+
+    return round(max(doubling_time, 1))
+
+
 def print_estimation(data, reliability_level="50%"):
     start = data[0][0]
     end = data[-1][0]
@@ -231,6 +273,65 @@ def bootstrap_growth_parameters(
         },
         "mean": (round(results[:, 0].mean()), round(results[:, 1].mean(), 3)),
         "std": (round(results[:, 0].std()), round(results[:, 1].std(), 3)),
+    }
+
+
+def bootstrap_doubling_time_fixed(
+    observations,
+    n_bootstrap=1000,
+    reliability_level="50%",
+    min_models=5,
+    recent_weight=2.0,
+    current_date=None,
+):
+    """
+    Bootstrap confidence intervals for doubling time with acceleration fixed at 1.
+
+    Returns distribution of doubling times assuming pure exponential growth.
+    """
+    n_obs = len(observations)
+    results = []
+
+    weights = np.array([recent_weight ** (i / n_obs) for i in range(n_obs)])
+    weights /= weights.sum()
+
+    for _ in range(n_bootstrap):
+        indices = np.random.choice(n_obs, size=n_obs, replace=True, p=weights)
+        bootstrap_sample = [observations[i] for i in sorted(indices)]
+
+        if len(set(indices)) >= min_models:
+            doubling_time = estimate_doubling_time_only(
+                bootstrap_sample, reliability_level=reliability_level
+            )
+
+            if 1 < doubling_time < 1000:
+                if current_date:
+                    last_model = max(bootstrap_sample, key=lambda x: x[1])
+                    last_date = last_model[1]
+                    days_since_last = (current_date - last_date).days
+
+                    if doubling_time > 0:
+                        prob_no_doubling = np.exp(-days_since_last / doubling_time)
+                        if np.random.random() > prob_no_doubling:
+                            continue
+
+                results.append(doubling_time)
+
+    if not results:
+        return None
+
+    results = np.array(results)
+    percentiles = np.percentile(results, [2.5, 5, 10, 25, 50, 75, 90, 95, 97.5])
+
+    return {
+        "median": round(percentiles[4]),
+        "ci_95": (round(percentiles[0]), round(percentiles[8])),
+        "ci_90": (round(percentiles[1]), round(percentiles[7])),
+        "ci_80": (round(percentiles[2]), round(percentiles[6])),
+        "ci_50": (round(percentiles[3]), round(percentiles[5])),
+        "mean": round(results.mean()),
+        "std": round(results.std()),
+        "samples": results,  # Return raw samples for further analysis
     }
 
 
