@@ -42,12 +42,8 @@ inference_compute_adj = sq.lognorm(lognorm_mean=2, lognorm_sd=1, lclip=1)
 
 # 3. What amount of reliability will we need? Is 50% sufficient? Probability distribution over hypotheses
 reliability_needed = sq.mixture(
-    [[0.2, 0.5], [0.5, 0.8], [0.1, 0.9], [0.1, 0.95], [0.1, 0.99]]
+    [[0.2, 0.5], [0.4, 0.8], [0.2, 0.9], [0.1, 0.95], [0.1, 0.99]]
 )
-if hacca_mode:
-    reliability_needed = sq.mixture(
-        [[0.2, 0.5], [0.5, 0.8], [0.1, 0.9], [0.1, 0.95], [0.1, 0.99]]
-    )
 
 # Turn the reliability number into an actual adjustment mulitiplier
 def reliability_count_to_penalty(reliability):
@@ -61,13 +57,6 @@ def reliability_count_to_penalty(reliability):
     out[hit_any] = penalty[idx[hit_any]]
     return out
 
-
-# 4. Adjustment for task type penalty -- How much multiplier should we adjust down to adjust for the fact that METR's suite is not all AGI relevant tasks?
-task_type_penalty = sq.mixture([
-        [0.1, 1],  # 10% chance that METR's software tasks are sufficient for AGI
-        [0.9, 1 / sq.lognorm(5, 200)],
-    ])  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
-# This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
 
 # 5. Adjustment for messy tasks -- benchmark tasks are clean, very well specified, and close-ended. Real world tasks are not. How much to adjust for that?
 messy_tasks_penalty = sq.mixture([[0.1, 1], [0.9, 1 / sq.norm(1, 10)]])
@@ -96,9 +85,6 @@ start_task_length = start_task_length * sq.dist_fn(
     reliability_needed, reliability_count_to_penalty
 )
 
-# Add task type penalty
-start_task_length *= task_type_penalty
-
 # Add messy tasks penalty
 start_task_length *= messy_tasks_penalty
 
@@ -115,7 +101,7 @@ start_task_length = sq.dist_max(1 / 60 / 60, start_task_length)
 
 # -----------
 # AGI TASK LENGTH: What length of time (in hours) is needed to be AGI?
-agi_task_length = sq.lognorm(80, 2000, credibility=80, lclip=40)
+agi_task_length = sq.lognorm(40, 174, credibility=80, lclip=40)
 
 # -----------
 # DOUBLING TIME: How many days does it take to double the effective task length?
