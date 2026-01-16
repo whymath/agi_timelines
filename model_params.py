@@ -21,12 +21,12 @@ custom_start_task_length = None
 custom_launch_date = None
 doubling_time_5percentile = 105 # days
 doubling_time_95percentile = 333 # days
-end_year = 2031
+end_year = 2050
 
 # Generating HACCA mode config
 if hacca_mode:
     # Common HACCA settings
-    end_year = 2035
+    # end_year = 2050
 
     # Whether to use custom doubling time specific to cybersecurity from Sean Peters' post
     if custom_doubling_time_mode:
