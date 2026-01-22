@@ -12,6 +12,7 @@ from model_data import model_data
 
 # HACCA flags to set
 hacca_mode = True
+invert_reliability_penalty = False
 custom_doubling_time_mode = False
 
 # Original defaults
@@ -20,12 +21,12 @@ custom_start_task_length = None
 custom_launch_date = None
 doubling_time_5percentile = 105 # days
 doubling_time_95percentile = 333 # days
-end_year = 2031
+end_year = 2050
 
 # Generating HACCA mode config
 if hacca_mode:
     # Common HACCA settings
-    end_year = 2035
+    # end_year = 2050
 
     # Whether to use custom doubling time specific to cybersecurity from Sean Peters' post
     if custom_doubling_time_mode:
@@ -92,6 +93,8 @@ def reliability_count_to_penalty(reliability):
     r = np.asarray(reliability, dtype=float)
     reliability = np.array([0.50, 0.80, 0.90, 0.95, 0.99])
     penalty = np.array([1.0, 0.25, 0.25**2, 0.25**3, 0.25**4])
+    if invert_reliability_penalty:
+        penalty = np.array([1.0, 4, 4**2, 4**3, 4**4])
     matches = r[..., None] == reliability
     hit_any = matches.any(axis=-1)
     idx = matches.argmax(axis=-1)
