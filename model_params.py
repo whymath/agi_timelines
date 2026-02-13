@@ -16,9 +16,9 @@ invert_reliability_penalty = False
 custom_doubling_time_mode = False
 
 new_hacca_mode = True
-new_reliability_calc = True
 
-capability_area, task_similarity, min_reliability, reliability_dist = 'Reconnaissance', 0.1, 0.8, [[0, 0.5], [1, 0.8], [0, 0.9], [0, 0.95], [0, 0.99]]
+capability_area, task_similarity, min_reliability, reliability_dist, task_similarity_dist = 'General', None, None, [[3/12, 0.5], [6/12, 0.8], [1/12, 0.9], [1/12, 0.95], [1/12, 0.99]], [[3/12, 0.1], [2/12, 0.2], [2/12, 0.4], [3/12, 0.5], [2/12, 0.7]]
+# capability_area, task_similarity, min_reliability, reliability_dist = 'Reconnaissance', 0.1, 0.8, [[0, 0.5], [1, 0.8], [0, 0.9], [0, 0.95], [0, 0.99]]
 # capability_area, task_similarity, min_reliability, reliability_dist = 'Exploitation', 0.5, 0.99, [[0, 0.5], [0, 0.8], [0, 0.9], [0, 0.95], [1, 0.99]]
 # capability_area, task_similarity, min_reliability, reliability_dist = 'Installation', 0.7, 0.95, [[0, 0.5], [0, 0.8], [0, 0.9], [1, 0.95], [0, 0.99]]
 
@@ -53,7 +53,7 @@ if hacca_mode:
     #     # HACCA mode with frontier models and 80% reliability
     #     reliability_metric = 'performance_80p'
 
-print(f"HACCA mode: {hacca_mode}, new_hacca_mode: {new_hacca_mode}, reliability metric: {reliability_metric}, new reliability calc: {new_reliability_calc}, custom_doubling_time: {custom_doubling_time_mode}, custom_start_task_length: {custom_start_task_length} hrs\n")
+print(f"HACCA mode: {hacca_mode}, new_hacca_mode: {new_hacca_mode}, reliability metric: {reliability_metric}, capability area: {capability_area}, custom_doubling_time: {custom_doubling_time_mode}, custom_start_task_length: {custom_start_task_length} hrs\n")
 
 # -----------
 # GET INITIAL
@@ -138,7 +138,7 @@ def get_reliability_multiplier(min_reliability, uncertainty_sd, exponent, baseli
         rclip=1.0  # Can't exceed baseline capability
     )
 
-if new_reliability_calc:
+if capability_area != 'General':
     reliability_multiplier = get_reliability_multiplier(min_reliability, reliability_sd, reliability_exp)
 else:
     reliability_multiplier = sq.dist_fn(
@@ -151,7 +151,16 @@ task_type_penalty = sq.mixture([
         [0.9, 1 / sq.lognorm(5, 200)],  # 90% chance that true AGI tasks are 5-200x harder than METR's software tasks
     ])
 # This is roughly based on comparing OSWorld to METR https://metr.org/blog/2025-07-14-how-does-time-horizon-vary-across-domains/
-if new_hacca_mode:
+
+if capability_area == 'General':
+    task_type_penalty = sq.mixture([
+    [0.25, sq.lognorm(norm_mean=0, norm_sd=1.2, lclip=0.1, rclip=10.0)],  # 10% similarity
+    [0.167, sq.lognorm(norm_mean=0, norm_sd=1.0, lclip=0.1, rclip=10.0)],  # 20% similarity
+    [0.167, sq.lognorm(norm_mean=0, norm_sd=0.7, lclip=0.1, rclip=10.0)],  # 40% similarity
+    [0.25, sq.lognorm(norm_mean=0, norm_sd=0.5, lclip=0.1, rclip=10.0)],   # 50% similarity
+    [0.167, sq.lognorm(norm_mean=0, norm_sd=0.3, lclip=0.1, rclip=10.0)],  # 70% similarity
+])
+elif new_hacca_mode:
     task_type_penalty = sq.lognorm(
         norm_mean=np.log(task_similarity),
         norm_sd=task_similarity_sd,
